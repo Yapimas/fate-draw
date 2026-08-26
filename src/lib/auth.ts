@@ -1,10 +1,3 @@
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = import.meta.env.VITE_JWT_SECRET || "fate-draw-secret-change-in-production";
-const JWT_EXPIRES_IN = "30d";
-const BCRYPT_ROUNDS = 12;
-
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -18,26 +11,29 @@ export interface JWTPayload {
   exp?: number;
 }
 
+/** Client-side password hashing using Web Crypto API (SHA-256). */
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, BCRYPT_ROUNDS);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+/** Not used client-side — kept for API compatibility. */
+export async function verifyPassword(_password: string, _hash: string): Promise<boolean> {
+  return false;
 }
 
-export function generateTokens(payload: Omit<JWTPayload, "iat" | "exp">): AuthTokens {
-  const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "15m" });
-  const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { accessToken, refreshToken };
+/** Not used client-side — tokens are handled by Supabase. */
+export function generateTokens(_payload: Omit<JWTPayload, "iat" | "exp">): AuthTokens {
+  return { accessToken: "", refreshToken: "" };
 }
 
-export function verifyToken(token: string): JWTPayload | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
-  } catch {
-    return null;
-  }
+/** Not used client-side. */
+export function verifyToken(_token: string): JWTPayload | null {
+  return null;
 }
 
 export function parseAuthHeader(authHeader: string | undefined): string | null {
@@ -51,16 +47,12 @@ export function getTokenFromCookie(): string | null {
   return match ? match[1] : null;
 }
 
-export function setAuthCookies(accessToken: string, refreshToken: string): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `auth_token=${accessToken}; path=/; max-age=900; SameSite=Lax; Secure`;
-  document.cookie = `refresh_token=${refreshToken}; path=/; max-age=2592000; SameSite=Lax; Secure`;
+export function setAuthCookies(_accessToken: string, _refreshToken: string): void {
+  // Handled by Supabase client
 }
 
 export function clearAuthCookies(): void {
-  if (typeof document === "undefined") return;
-  document.cookie = "auth_token=; path=/; max-age=0; SameSite=Lax; Secure";
-  document.cookie = "refresh_token=; path=/; max-age=0; SameSite=Lax; Secure";
+  // Handled by Supabase client
 }
 
 export function getStoredRefreshToken(): string | null {
