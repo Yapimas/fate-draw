@@ -10,9 +10,7 @@ interface HomeViewProps {
   todayDraw: Draw | null;
   justDrew: boolean;
   streak: number;
-  showRedraw: boolean;
   onDraw: () => void;
-  onRedraw: () => void;
   onUtcRollover: () => void;
   onOpenLegal: () => void;
 }
@@ -46,9 +44,7 @@ export default function HomeView({
   todayDraw,
   justDrew,
   streak,
-  showRedraw,
   onDraw,
-  onRedraw,
   onUtcRollover,
   onOpenLegal,
 }: HomeViewProps) {
@@ -94,7 +90,7 @@ export default function HomeView({
             : `hey ${profile.username} 👋`}{" "}
           ·{" "}
           <button className="hint-link" onClick={onOpenLegal}>
-            Terms &amp; Privacy
+            Terms & Privacy
           </button>
         </p>
       </section>
@@ -113,15 +109,6 @@ export default function HomeView({
         <button className="btn-secondary" onClick={handleExport} disabled={saving}>
           {saving ? "Preparing…" : "⬇ Save / Share"}
         </button>
-        {showRedraw && (
-          <button
-            className="btn-test"
-            onClick={onRedraw}
-            title="Testing mode: discard today's card and draw again"
-          >
-            ↻ Redraw (test)
-          </button>
-        )}
       </div>
       <div className="result-meta">
         <span className="chip streak-chip">🔥 {streak}-day streak</span>

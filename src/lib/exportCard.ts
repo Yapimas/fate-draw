@@ -2,8 +2,8 @@ import { toPng } from "html-to-image";
 
 /**
  * Renders the card node to a high-res PNG (3x ≈ 1080×1920 story size),
- * then shares it via the native share sheet when available,
- * falling back to a plain download everywhere else.
+ * copies to clipboard (if supported), then shares via native share sheet,
+ * falling back to a plain download.
  */
 export async function exportCardImage(
   node: HTMLElement,
@@ -14,6 +14,17 @@ export async function exportCardImage(
   const blob = await (await fetch(dataUrl)).blob();
   const file = new File([blob], filename, { type: "image/png" });
 
+  // 1. Copy to clipboard (modern browsers)
+  if (navigator.clipboard?.write) {
+    try {
+      const item = new ClipboardItem({ "image/png": blob });
+      await navigator.clipboard.write([item]);
+    } catch (e) {
+      console.warn("Clipboard copy failed", e);
+    }
+  }
+
+  // 2. Native share sheet (mobile)
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({
@@ -23,11 +34,12 @@ export async function exportCardImage(
       });
       return;
     } catch (err) {
-      if ((err as Error)?.name === "AbortError") return; // user closed share sheet
+      if ((err as Error)?.name === "AbortError") return;
       throw err;
     }
   }
 
+  // 3. Fallback: download
   const link = document.createElement("a");
   link.download = filename;
   link.href = dataUrl;

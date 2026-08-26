@@ -1,12 +1,16 @@
 import type { Draw, Profile } from "../types";
 
 interface Store {
-  users: Record<string, Profile>; // keyed by normalized email
+  users: Record<string, UserRecord>; // keyed by normalized email
   draws: Draw[];
 }
 
-const STORE_KEY = "fatedraw.store.v1";
-const SESSION_KEY = "fatedraw.session.v1";
+interface UserRecord extends Profile {
+  passwordHash: string;
+}
+
+const STORE_KEY = "fatedraw.store.v2";
+const SESSION_KEY = "fatedraw.session.v2";
 
 /** Pseudo-account used when someone plays without signing in. */
 export const GUEST_EMAIL = "guest";
@@ -37,12 +41,16 @@ export function isValidUsername(username: string): boolean {
   return /^[A-Za-z0-9_]{3,16}$/.test(username);
 }
 
+export function isValidPassword(password: string): boolean {
+  return password.length >= 8 && password.length <= 128;
+}
+
 /* ---------------- sessions ---------------- */
 
 function ensureGuest(): Profile {
   const store = readStore();
   if (!store.users[GUEST_EMAIL]) {
-    store.users[GUEST_EMAIL] = { email: GUEST_EMAIL, username: "Wanderer" };
+    store.users[GUEST_EMAIL] = { email: GUEST_EMAIL, username: "Wanderer", passwordHash: "" };
     writeStore(store);
   }
   localStorage.setItem(SESSION_KEY, GUEST_EMAIL);
@@ -54,70 +62,70 @@ export function startAsGuest(): Profile {
   return ensureGuest();
 }
 
-/**
- * Demo mode: pretend to send a magic-link email.
- * A real deployment would call an auth backend here; the UI flow is identical:
- * enter email -> receive link -> tap link -> signed in.
- */
-export function sendMagicLink(email: string): string {
-  return normalizeEmail(email);
-}
-
-/** Simulates the user tapping the link in their inbox. */
-export function consumeMagicLink(email: string): Profile | null {
+/** Register a new user with email, username and password. */
+export function registerUser(
+  email: string,
+  username: string,
+  passwordHash: string
+): Profile | { error: string } {
   const key = normalizeEmail(email);
-  const previous = localStorage.getItem(SESSION_KEY);
   const store = readStore();
 
-  // One-time migration: fold the guest's cards into the freshly signed-in
-  // account so nobody loses a streak or collection by creating an account.
-  if (previous === GUEST_EMAIL && key !== GUEST_EMAIL) {
-    const accountDates = new Set(
-      store.draws.filter((d) => d.userEmail === key).map((d) => d.drawDate)
-    );
-    for (const d of store.draws) {
-      if (d.userEmail === GUEST_EMAIL && !accountDates.has(d.drawDate)) {
-        store.draws.push({ ...d, id: `${key}-${d.id}`, userEmail: key });
-      }
-    }
-    store.draws = store.draws.filter((d) => d.userEmail !== GUEST_EMAIL);
-    delete store.users[GUEST_EMAIL];
+  if (store.users[key]) {
+    return { error: "An account with this email already exists." };
   }
 
-  if (!store.users[key]) {
-    store.users[key] = { email: key, username: "" };
-  }
-  writeStore(store);
-  localStorage.setItem(SESSION_KEY, key);
-  return store.users[key];
-}
-
-export function getSession(): Profile | null {
-  const key = localStorage.getItem(SESSION_KEY);
-  if (!key) return null;
-  return readStore().users[key] ?? null;
-}
-
-export function setUsername(
-  email: string,
-  rawUsername: string
-): Profile | { error: string } {
-  const username = rawUsername.trim();
-  if (!isValidUsername(username)) {
+  const usernameTrimmed = username.trim();
+  if (!isValidUsername(usernameTrimmed)) {
     return { error: "Usernames are 3–16 characters: letters, numbers and underscore." };
   }
+
+  const taken = Object.values(store.users).some(
+    (u) => u.username.toLowerCase() === usernameTrimmed.toLowerCase()
+  );
+  if (taken) return { error: "That username is already taken." };
+
+  const newUser: UserRecord = {
+    email: key,
+    username: usernameTrimmed,
+    passwordHash,
+  };
+
+  store.users[key] = newUser;
+  writeStore(store);
+  localStorage.setItem(SESSION_KEY, key);
+  return { email: key, username: usernameTrimmed };
+}
+
+/** Verify credentials and return profile if valid. */
+export function loginUser(email: string, passwordHash: string): Profile | { error: string } {
   const key = normalizeEmail(email);
   const store = readStore();
   const user = store.users[key];
-  if (!user) return { error: "Session expired — please sign in again." };
-  const taken = Object.values(store.users).some(
-    (u) => u.email !== key && u.username.toLowerCase() === username.toLowerCase()
-  );
-  if (taken) return { error: "That username is already taken." };
-  user.username = username;
-  store.users[key] = user;
-  writeStore(store);
-  return user;
+
+  if (!user) {
+    return { error: "Invalid email or password." };
+  }
+
+  if (user.passwordHash !== passwordHash) {
+    return { error: "Invalid email or password." };
+  }
+
+  localStorage.setItem(SESSION_KEY, key);
+  return { email: user.email, username: user.username };
+}
+
+/** Get current session profile. */
+export function getSession(): Profile | null {
+  const key = localStorage.getItem(SESSION_KEY);
+  if (!key) return null;
+  const store = readStore();
+  const user = store.users[key];
+  if (!user) {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  return { email: user.email, username: user.username };
 }
 
 /** Leaving an account drops you back into the anonymous guest slot. */
@@ -126,13 +134,35 @@ export function signOut(): Profile {
   return ensureGuest();
 }
 
+/** Update username for the current session user. */
+export function setUsername(email: string, username: string): Profile | { error: string } {
+  const key = normalizeEmail(email);
+  const store = readStore();
+  const user = store.users[key];
+
+  if (!user) return { error: "User not found." };
+
+  const usernameTrimmed = username.trim();
+  if (!isValidUsername(usernameTrimmed)) {
+    return { error: "Usernames are 3–16 characters: letters, numbers and underscore." };
+  }
+
+  const taken = Object.values(store.users).some(
+    (u) => u.username.toLowerCase() === usernameTrimmed.toLowerCase() && u.email !== key
+  );
+  if (taken) return { error: "That username is already taken." };
+
+  user.username = usernameTrimmed;
+  writeStore(store);
+  return { email: user.email, username: user.username };
+}
+
 /* ---------------- draws ---------------- */
 
 export function getTodayDraw(email: string, todayUtc: string): Draw | null {
   const key = normalizeEmail(email);
   return (
-    readStore().draws.find((d) => d.userEmail === key && d.drawDate === todayUtc) ??
-    null
+    readStore().draws.find((d) => d.userEmail === key && d.drawDate === todayUtc) ?? null
   );
 }
 
@@ -170,4 +200,12 @@ export function deleteDrawsForDate(email: string, dateUtc: string): void {
     (d) => !(d.userEmail === key && d.drawDate === dateUtc)
   );
   writeStore(store);
+}
+
+export function getAllDrawsByEmail(email: string): Draw[] {
+  return getAllDraws(email);
+}
+
+export function getUserDrawDatesByEmail(email: string): Set<string> {
+  return getUserDrawDates(email);
 }

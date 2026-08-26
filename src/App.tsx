@@ -4,8 +4,8 @@ import { getTodayUTC } from "./lib/utc";
 import { computeStreak, generateDraw } from "./lib/fate";
 import { installGlobalSfx } from "./lib/globalSfx";
 import { SUPABASE_READY, supabase } from "./lib/supabase";
+import { hashPassword } from "./lib/auth";
 import {
-  deleteDrawForDate,
   fetchDraws,
   fetchProfile,
   migrateGuestDraws,
@@ -14,29 +14,27 @@ import {
 } from "./lib/account";
 import {
   GUEST_EMAIL,
-  consumeMagicLink,
-  deleteDrawsForDate,
   getAllDraws,
   getSession,
   getTodayDraw,
   getUserDrawDates,
   isValidUsername,
+  loginUser,
+  registerUser,
   saveDraw,
-  sendMagicLink,
   setUsername,
   signOut,
   startAsGuest,
 } from "./lib/storage";
-import AuthView from "./components/AuthView";
 import UsernameView from "./components/UsernameView";
 import HomeView from "./components/HomeView";
 import CollectionView from "./components/CollectionView";
 import CardPickOverlay from "./components/CardPickOverlay";
 import LegalModal from "./components/LegalModal";
+import LoginView from "./components/LoginView";
+import RegisterView from "./components/RegisterView";
 
 type View = "loading" | "auth" | "username" | "home" | "collection";
-
-const TEST_MODE_KEY = "fatedraw.testMode.v1";
 
 export default function App() {
   const [view, setView] = useState<View>("loading");
@@ -47,13 +45,7 @@ export default function App() {
   const [streak, setStreak] = useState(0);
   const [pendingDraw, setPendingDraw] = useState<Draw | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
-  const [testMode, setTestMode] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(TEST_MODE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   const bootedRef = useRef(false);
 
@@ -70,9 +62,9 @@ export default function App() {
       }
       return;
     }
-    setTodayDraw(getTodayDraw(p.email, today));
+    setTodayDraw(getTodayDraw(p.email, getTodayUTC()));
     setDraws(getAllDraws(p.email));
-    setStreak(computeStreak(getUserDrawDates(p.email), today));
+    setStreak(computeStreak(getUserDrawDates(p.email), getTodayUTC()));
   }, []);
 
   function enter(p: Profile) {
@@ -84,6 +76,37 @@ export default function App() {
     void refresh(p);
     setView("home");
   }
+
+  /** Restore a session from localStorage or Supabase. */
+  async function restoreSession() {
+    if (SUPABASE_READY && supabase) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const user = data.session?.user;
+        if (user) {
+          await enterAccount(user.id, user.email ?? "");
+          return;
+        }
+      } catch (err) {
+        console.error("Session restore failed", err);
+      }
+    }
+    // No account session — play as guest immediately, no login wall.
+    enter(getSession() ?? startAsGuest());
+  }
+
+  useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+    restoreSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => installGlobalSfx(), []);
+
+  const handleUtcRollover = useCallback(() => {
+    if (profile?.username) void refresh(profile);
+  }, [profile, refresh]);
 
   /** Restore a Supabase session (incl. magic-link redirects) and migrate guest cards. */
   async function enterAccount(userId: string, email: string) {
@@ -105,83 +128,44 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    if (bootedRef.current) return;
-    bootedRef.current = true;
-    void (async () => {
-      try {
-        if (supabase) {
-          const { data } = await supabase.auth.getSession();
-          const user = data.session?.user;
-          if (user) {
-            await enterAccount(user.id, user.email ?? "");
-            return;
-          }
-        }
-      } catch (err) {
-        console.error("Session restore failed", err);
-      }
-      // No account session — play as guest immediately, no login wall.
-      enter(getSession() ?? startAsGuest());
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => installGlobalSfx(), []);
-
-  const handleUtcRollover = useCallback(() => {
-    if (profile?.username) void refresh(profile);
-  }, [profile, refresh]);
-
-  function toggleTestMode() {
-    setTestMode((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem(TEST_MODE_KEY, next ? "1" : "0");
-      } catch {
-        // private mode etc — session-only fallback
-      }
-      return next;
-    });
+  async function handleRegister(email: string, username: string, password: string): Promise<string | null> {
+    const passwordHash = await hashPassword(password);
+    const result = registerUser(email, username, passwordHash);
+    if ("error" in result) return result.error;
+    const p: Profile = { id: "", email: result.email, username: result.username };
+    setProfile(p);
+    await refresh(p);
+    setView("home");
+    return null;
   }
 
-  /** Real OTP when Supabase is configured; simulated link in demo mode. */
-  async function handleSendLink(email: string) {
-    if (supabase) {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      return;
-    }
-    sendMagicLink(email); // demo mode: no network call
+  async function handleLogin(email: string, password: string): Promise<string | null> {
+    const passwordHash = await hashPassword(password);
+    const result = loginUser(email, passwordHash);
+    if ("error" in result) return result.error;
+    const p: Profile = { id: "", email: result.email, username: result.username };
+    setProfile(p);
+    await refresh(p);
+    setView("home");
+    return null;
   }
 
-  function handleOpenLink(email: string) {
-    const p = consumeMagicLink(email); // guest data migrates into the demo account
-    if (p) {
-      setJustDrew(false);
-      enter(p);
-    }
-  }
-
-  async function handleSaveUsername(rawUsername: string): Promise<string | null> {
+  async function handleSaveUsername(username: string): Promise<string | null> {
     if (!profile) return "Not signed in.";
-    const username = rawUsername.trim();
-    if (!isValidUsername(username)) {
+    const usernameTrimmed = username.trim();
+    if (!isValidUsername(usernameTrimmed)) {
       return "Usernames are 3–16 characters: letters, numbers and underscore.";
     }
     if (profile.id && supabase) {
-      const res = await saveUsernameDb(profile.id, username);
+      const res = await saveUsernameDb(profile.id, usernameTrimmed);
       if (!res.ok) return res.error;
-      const updated: Profile = { ...profile, username };
+      const updated: Profile = { ...profile, username: usernameTrimmed };
       setProfile(updated);
       await refresh(updated);
       setView("home");
       return null;
     }
-    const result = setUsername(profile.email, username);
+    const result = setUsername(profile.email, usernameTrimmed);
     if ("error" in result) return result.error;
     setProfile(result);
     setJustDrew(false);
@@ -190,27 +174,8 @@ export default function App() {
     return null;
   }
 
-  /* The draw is generated up front but only recorded once the card-pick
-     ceremony completes, so closing the tab mid-animation never burns a day. */
   function handleDraw() {
     if (!profile || pendingDraw || todayDraw) return;
-    setPendingDraw(generateDraw(profile.email));
-  }
-
-  /* 🧪 testing: discard today's card and run the ceremony again. */
-  async function handleRedraw() {
-    if (!profile || !todayDraw || pendingDraw) return;
-    try {
-      if (profile.id && supabase) {
-        await deleteDrawForDate(profile.id, getTodayUTC());
-      } else {
-        deleteDrawsForDate(profile.email, getTodayUTC());
-      }
-    } catch (err) {
-      console.error("Redraw cleanup failed", err);
-    }
-    await refresh(profile);
-    setJustDrew(false);
     setPendingDraw(generateDraw(profile.email));
   }
 
@@ -233,7 +198,7 @@ export default function App() {
     setPendingDraw(null);
   }
 
-  /* Signing out of an account returns you to the guest slot — never a wall. */
+  /* Signing out of an account returns you to the anonymous guest slot — never a wall. */
   async function handleSignOut() {
     if (supabase) {
       try {
@@ -259,15 +224,22 @@ export default function App() {
   }
 
   if (view === "auth") {
-    return (
-      <AuthView
-        mode={SUPABASE_READY ? "supabase" : "demo"}
-        onSendLink={handleSendLink}
-        onOpenLink={handleOpenLink}
-        onCancel={() => setView("home")}
-        onOpenLegal={() => setLegalOpen(true)}
-      />
-    );
+    if (authMode === "login") {
+      return (
+        <LoginView
+          onSubmit={handleLogin}
+          onSwitchToRegister={() => setAuthMode("register")}
+          onCancel={() => setView("home")}
+        />
+      );
+    } else {
+      return (
+        <RegisterView
+          onSubmit={handleRegister}
+          onSwitchToLogin={() => setAuthMode("login")}
+        />
+      );
+    }
   }
 
   if (view === "username") {
@@ -300,14 +272,6 @@ export default function App() {
               Collection
             </button>
             <span className="chip streak-chip">🔥 {streak}</span>
-            <button
-              className={`chip test-chip${testMode ? " on" : ""}`}
-              onClick={toggleTestMode}
-              title="Testing: allow unlimited redraws"
-              aria-pressed={testMode}
-            >
-              🧪
-            </button>
             {isSignedIn ? (
               <>
                 <span className="chip user-chip">@{profile?.username}</span>
@@ -329,9 +293,7 @@ export default function App() {
             todayDraw={todayDraw}
             justDrew={justDrew}
             streak={streak}
-            showRedraw={testMode && Boolean(todayDraw)}
             onDraw={handleDraw}
-            onRedraw={handleRedraw}
             onUtcRollover={handleUtcRollover}
             onOpenLegal={() => setLegalOpen(true)}
           />
