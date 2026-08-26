@@ -7,9 +7,11 @@ interface ProfileDropdownProps {
   streak: number;
   onSignOut: () => void;
   onOpenLeaderboard: () => void;
+  onOpenTerms: () => void;
+  onResetAccount: () => void;
 }
 
-export default function ProfileDropdown({ profile, streak, onSignOut, onOpenLeaderboard }: ProfileDropdownProps) {
+export default function ProfileDropdown({ profile, streak, onSignOut, onOpenLeaderboard, onOpenTerms, onResetAccount }: ProfileDropdownProps) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +80,16 @@ export default function ProfileDropdown({ profile, streak, onSignOut, onOpenLead
 
           <button className="dropdown-item" role="menuitem" onClick={onOpenLeaderboard}>
             <span>🏆</span> Leaderboard
+          </button>
+
+          <div className="dropdown-divider" />
+
+          <button className="dropdown-item" role="menuitem" onClick={onOpenTerms}>
+            <span>📜</span> Terms of Service
+          </button>
+
+          <button className="dropdown-item danger" role="menuitem" onClick={onResetAccount}>
+            <span>🗑️</span> Reset Account
           </button>
 
           <div className="dropdown-divider" />

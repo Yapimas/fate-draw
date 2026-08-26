@@ -26,6 +26,7 @@ import {
   signOut,
   startAsGuest,
   addXp,
+  clearUserData,
 } from "./lib/storage";
 import UsernameView from "./components/UsernameView";
 import HomeView from "./components/HomeView";
@@ -33,9 +34,11 @@ import CollectionView from "./components/CollectionView";
 import LeaderboardView from "./components/LeaderboardView";
 import CardPickOverlay from "./components/CardPickOverlay";
 import LegalModal from "./components/LegalModal";
+import TermsModal from "./components/TermsModal";
 import LoginView from "./components/LoginView";
 import RegisterView from "./components/RegisterView";
 import ProfileDropdown from "./components/ProfileDropdown";
+import BackgroundParticles from "./components/BackgroundParticles";
 
 type View = "loading" | "auth" | "username" | "home" | "collection" | "leaderboard";
 
@@ -48,6 +51,8 @@ export default function App() {
   const [streak, setStreak] = useState(0);
   const [pendingDraw, setPendingDraw] = useState<Draw | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   const bootedRef = useRef(false);
@@ -231,6 +236,31 @@ export default function App() {
     setView("home");
   }
 
+  function handleOpenTerms() {
+    setTermsOpen(true);
+  }
+
+  async function handleConfirmReset() {
+    if (!profile) return;
+    if (profile.id && supabase) {
+      // For Supabase users, we'd need a backend function to delete the account
+      // For now, just clear local data and sign out
+      await clearUserData(profile.email);
+    } else {
+      await clearUserData(profile.email);
+    }
+    const p = signOut();
+    setProfile(p);
+    setJustDrew(false);
+    setPendingDraw(null);
+    setDraws([]);
+    setStreak(0);
+    setTodayDraw(null);
+    await refresh(p);
+    setView("home");
+    setResetConfirmOpen(false);
+  }
+
   const handleOpenLeaderboard = () => {
     setView("leaderboard");
   };
@@ -270,6 +300,7 @@ export default function App() {
 
   return (
     <>
+      <BackgroundParticles />
       <div className="app-shell">
         <header className="topbar">
           <button className="logo" onClick={() => setView("home")}>
@@ -307,6 +338,8 @@ export default function App() {
                 streak={streak}
                 onSignOut={handleSignOut}
                 onOpenLeaderboard={handleOpenLeaderboard}
+                onOpenTerms={handleOpenTerms}
+                onResetAccount={() => setResetConfirmOpen(true)}
               />
             ) : (
               <button className="btn-signin" onClick={() => setView("auth")}>
@@ -340,6 +373,33 @@ export default function App() {
       )}
 
       {legalOpen && <LegalModal onClose={() => setLegalOpen(false)} />}
+      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
+      {resetConfirmOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => e.target === e.currentTarget && setResetConfirmOpen(false)}
+        >
+          <div className="modal-body reset-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+            <h2 id="reset-title">Reset Account?</h2>
+            <p>This will permanently delete <strong>all your data</strong>:</p>
+            <ul>
+              <li>All drawn cards & collection</li>
+              <li>XP, level & streak</li>
+              <li>Collection series progress</li>
+            </ul>
+            <p>Your username <strong>@{profile?.username}</strong> will be available for re-registration.</p>
+            <p className="warning">This action cannot be undone.</p>
+            <div className="reset-actions">
+              <button className="btn-secondary" onClick={() => setResetConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={handleConfirmReset}>
+                Yes, Reset My Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

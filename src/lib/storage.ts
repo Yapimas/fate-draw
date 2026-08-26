@@ -386,3 +386,25 @@ export function getUserSeries(email: string): CardSeries[] {
       return rarityA - rarityB;
     });
 }
+
+/* ---------------- Account Reset ---------------- */
+
+export async function clearUserData(email: string): Promise<void> {
+  const key = normalizeEmail(email);
+  const store = readStore();
+
+  // Remove user record
+  delete store.users[key];
+
+  // Remove all draws for this user
+  store.draws = store.draws.filter((d) => d.userEmail !== key);
+
+  // Remove all series for this user
+  Object.keys(store.series).forEach((sKey) => {
+    if (sKey.startsWith(key + "|")) {
+      delete store.series[sKey];
+    }
+  });
+
+  writeStore(store);
+}

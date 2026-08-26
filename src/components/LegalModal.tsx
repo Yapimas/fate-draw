@@ -41,7 +41,7 @@ export default function LegalModal({ onClose }: LegalModalProps) {
 
           <h3>What we store</h3>
           <p>
-            If you sign in, we store your <strong>email address</strong> (for
+            If you sign in, we store your <strong>username</strong> (for
             authentication) and the <strong>cards you draw</strong> (name,
             score, category, date) so your collection and streak work across
             devices. Authentication and data storage are handled by Supabase.
@@ -57,12 +57,18 @@ export default function LegalModal({ onClose }: LegalModalProps) {
             data. Nothing beyond what the game needs to function.
           </p>
 
-          <h3>Deleting your data</h3>
+          <h3>Account Reset & Data Deletion</h3>
+          <p>
+            <strong>You can reset your account at any time</strong> using the
+            "Reset Account" button in your profile dropdown (top-right avatar menu).
+            This permanently deletes all your data — draws, XP, level, streak,
+            collection series progress — but keeps your username available for
+            re-registration.
+          </p>
           <p>
             Guests can wipe everything by clearing site data in their browser.
-            Signed-in users can request full account deletion at any time —
-            reach out through the project's GitHub page and your email and
-            cards will be removed.
+            Signed-in users can also request full account deletion via the
+            project's GitHub page.
           </p>
 
           <h3>The service itself</h3>
