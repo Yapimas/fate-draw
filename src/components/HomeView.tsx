@@ -50,6 +50,7 @@ export default function HomeView({
 }: HomeViewProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
+  const [showUsername, setShowUsername] = useState(true);
 
   async function handleExport() {
     if (!todayDraw || !cardRef.current || saving) return;
@@ -58,7 +59,8 @@ export default function HomeView({
       await exportCardImage(
         cardRef.current,
         `fate-${todayDraw.drawDate}.png`,
-        `${todayDraw.cardName} — ${todayDraw.score}% (${todayDraw.category})`
+        `${todayDraw.cardName} — ${todayDraw.score}% (${todayDraw.category})`,
+        showUsername ? profile.username : undefined
       );
     } catch (err) {
       console.error("Card export failed", err);
@@ -104,11 +106,27 @@ export default function HomeView({
           You already checked your fate today — come back tomorrow for a new one.
         </div>
       )}
-      <FateCard ref={cardRef} draw={todayDraw} dateLabel={formatUtcDate(todayDraw.drawDate)} />
+      <FateCard
+        ref={cardRef}
+        draw={todayDraw}
+        dateLabel={formatUtcDate(todayDraw.drawDate)}
+        username={showUsername ? profile.username : undefined}
+      />
       <div className="result-actions">
-        <button className="btn-secondary" onClick={handleExport} disabled={saving}>
-          {saving ? "Preparing…" : "⬇ Save / Share"}
-        </button>
+        <div className="save-group">
+          <label className="username-checkbox">
+            <input
+              type="checkbox"
+              checked={showUsername}
+              onChange={(e) => setShowUsername(e.target.checked)}
+              disabled={saving}
+            />
+            <span>Include username</span>
+          </label>
+          <button className="btn-secondary" onClick={handleExport} disabled={saving}>
+            {saving ? "Preparing…" : "⬇ Save"}
+          </button>
+        </div>
       </div>
       <div className="result-meta">
         <span className="chip streak-chip">🔥 {streak}-day streak</span>

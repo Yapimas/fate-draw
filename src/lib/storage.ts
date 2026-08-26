@@ -1,4 +1,5 @@
 import type { Draw, Profile } from "../types";
+import { getCategoryRarityIndex } from "../types";
 
 interface Store {
   users: Record<string, UserRecord>; // keyed by normalized email
@@ -50,7 +51,14 @@ export function isValidPassword(password: string): boolean {
 function ensureGuest(): Profile {
   const store = readStore();
   if (!store.users[GUEST_EMAIL]) {
-    store.users[GUEST_EMAIL] = { email: GUEST_EMAIL, username: "Wanderer", passwordHash: "" };
+    store.users[GUEST_EMAIL] = {
+      email: GUEST_EMAIL,
+      username: "Wanderer",
+      passwordHash: "",
+      xp: 0,
+      level: 1,
+      totalDraws: 0,
+    };
     writeStore(store);
   }
   localStorage.setItem(SESSION_KEY, GUEST_EMAIL);
@@ -89,12 +97,15 @@ export function registerUser(
     email: key,
     username: usernameTrimmed,
     passwordHash,
+    xp: 0,
+    level: 1,
+    totalDraws: 0,
   };
 
   store.users[key] = newUser;
   writeStore(store);
   localStorage.setItem(SESSION_KEY, key);
-  return { email: key, username: usernameTrimmed };
+  return { email: key, username: usernameTrimmed, xp: 0, level: 1, totalDraws: 0 };
 }
 
 /** Verify credentials and return profile if valid. */
@@ -112,7 +123,13 @@ export function loginUser(email: string, passwordHash: string): Profile | { erro
   }
 
   localStorage.setItem(SESSION_KEY, key);
-  return { email: user.email, username: user.username };
+  return {
+    email: user.email,
+    username: user.username,
+    xp: user.xp,
+    level: user.level,
+    totalDraws: user.totalDraws,
+  };
 }
 
 /** Get current session profile. */
@@ -125,7 +142,13 @@ export function getSession(): Profile | null {
     localStorage.removeItem(SESSION_KEY);
     return null;
   }
-  return { email: user.email, username: user.username };
+  return {
+    email: user.email,
+    username: user.username,
+    xp: user.xp,
+    level: user.level,
+    totalDraws: user.totalDraws,
+  };
 }
 
 /** Leaving an account drops you back into the anonymous guest slot. */
@@ -154,7 +177,13 @@ export function setUsername(email: string, username: string): Profile | { error:
 
   user.username = usernameTrimmed;
   writeStore(store);
-  return { email: user.email, username: user.username };
+  return {
+    email: user.email,
+    username: user.username,
+    xp: user.xp,
+    level: user.level,
+    totalDraws: user.totalDraws,
+  };
 }
 
 /* ---------------- draws ---------------- */
@@ -189,6 +218,14 @@ export function saveDraw(draw: Draw): void {
   );
   if (exists) throw new Error("A card was already drawn today.");
   store.draws.push(draw);
+
+  // Update user stats
+  const key = normalizeEmail(draw.userEmail);
+  const user = store.users[key];
+  if (user) {
+    user.totalDraws += 1;
+  }
+
   writeStore(store);
 }
 
@@ -208,4 +245,71 @@ export function getAllDrawsByEmail(email: string): Draw[] {
 
 export function getUserDrawDatesByEmail(email: string): Set<string> {
   return getUserDrawDates(email);
+}
+
+/* ---------------- XP & Level ---------------- */
+
+export function addXp(email: string, xpGain: number): { xp: number; level: number; leveledUp: boolean } {
+  const key = normalizeEmail(email);
+  const store = readStore();
+  const user = store.users[key];
+
+  if (!user) return { xp: 0, level: 1, leveledUp: false };
+
+  user.xp += xpGain;
+
+  // Calculate new level: level = floor((xp / 100)^(2/3)) + 1 roughly
+  // Using formula: required XP = 100 * level^1.5
+  let newLevel = 1;
+  while (user.xp >= 100 * Math.pow(newLevel + 1, 1.5)) {
+    newLevel++;
+  }
+
+  const leveledUp = newLevel > user.level;
+  user.level = newLevel;
+  writeStore(store);
+
+  return { xp: user.xp, level: user.level, leveledUp };
+}
+
+export function getXpForLevel(level: number): number {
+  return Math.floor(100 * Math.pow(level, 1.5));
+}
+
+export function getXpForNextLevel(level: number): number {
+  return Math.floor(100 * Math.pow(level + 1, 1.5));
+}
+
+/* ---------------- Leaderboard ---------------- */
+
+export interface LeaderboardEntry {
+  username: string;
+  cardName: string;
+  score: number;
+  category: string;
+  drawDate: string;
+}
+
+export function getDailyLeaderboard(dateUtc: string, limit = 50): LeaderboardEntry[] {
+  const store = readStore();
+  const todaysDraws = store.draws.filter((d) => d.drawDate === dateUtc);
+
+  // Sort by rarity (category) first, then by score
+  const sorted = todaysDraws.sort((a, b) => {
+    const rarityA = getCategoryRarityIndex(a.category);
+    const rarityB = getCategoryRarityIndex(b.category);
+    if (rarityA !== rarityB) return rarityA - rarityB;
+    return b.score - a.score;
+  });
+
+  return sorted.slice(0, limit).map((d) => {
+    const user = store.users[d.userEmail];
+    return {
+      username: user?.username ?? "Unknown",
+      cardName: d.cardName,
+      score: d.score,
+      category: d.category,
+      drawDate: d.drawDate,
+    };
+  });
 }

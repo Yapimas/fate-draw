@@ -276,9 +276,59 @@ const N = {
   C6: 1046.5,
   D6: 1174.66,
   E6: 1318.51,
+  G6: 1567.98,
+  C7: 2093.0,
 };
 
 export type RewardTier = "doom" | "sad" | "plain" | "bright" | "epic" | "mythic";
+
+/** Slot machine style jackpot sound for Absolute Fate. */
+function playSlotMachineWin(c: AudioContext, t: number): void {
+  // Classic slot machine winning sequence: ascending arpeggio with repeating "ding" pattern
+  const baseNotes = [N.C5, N.E5, N.G5, N.C6, N.E6, N.G6, N.C7];
+  const delayBetween = 0.06;
+  
+  // Rapid fire dings (like coins pouring)
+  for (let i = 0; i < 12; i++) {
+    const note = baseNotes[i % baseNotes.length];
+    const noteTime = t + i * delayBetween;
+    bell(note, noteTime, 0.18, 0.5);
+    
+    // Add a subtle "coin" click
+    const click = c.createOscillator();
+    click.type = "square";
+    click.frequency.value = 1200 + i * 50;
+    const cg = c.createGain();
+    env(cg, noteTime, 0.08, 0.001, 0.04);
+    click.connect(cg).connect(out());
+    click.start(noteTime);
+    click.stop(noteTime + 0.05);
+  }
+  
+  // Big ascending fanfare
+  const fanfareNotes = [N.C4, N.E4, N.G4, N.C5, N.E5, N.G5, N.C6];
+  fanfareNotes.forEach((f, i) => {
+    const noteTime = t + 0.75 + i * 0.08;
+    brass(f, noteTime, 0.12, 0.9);
+    bell(f * 2, noteTime + 0.02, 0.1, 1.2);
+  });
+  
+  // Final sustained chord with shimmer
+  [N.C5, N.E5, N.G5].forEach((f) => {
+    bell(f, t + 1.3, 0.15, 3.0);
+  });
+  shimmer(t + 1.3, 3.0, 0.12);
+  
+  // Celebration "ta-da" ending
+  setTimeout(() => {
+    try {
+      const c2 = ac();
+      const t2 = c2.currentTime;
+      const tada = [N.C6, N.E6, N.G6, N.C7];
+      tada.forEach((f, i) => bell(f, t2 + i * 0.1, 0.12, 1.5));
+    } catch {}
+  }, 2000);
+}
 
 export function rewardTierFor(category: string): RewardTier {
   switch (category) {
@@ -341,6 +391,8 @@ export function playReward(tier: RewardTier): number {
         return 2.7;
       }
       case "mythic": {
+        // Slot machine style win sound for Absolute Fate
+        playSlotMachineWin(c, t0);
         // riser
         const rise = c.createOscillator();
         rise.type = "sine";
@@ -362,7 +414,7 @@ export function playReward(tier: RewardTier): number {
         // final halo
         bell(N.C6, t0 + 1.25, 0.13, 2.4);
         bell(N.E6, t0 + 1.33, 0.11, 2.4);
-        return 4.0;
+        return 5.5;
       }
     }
   } catch {}

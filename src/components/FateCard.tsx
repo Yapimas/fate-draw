@@ -41,10 +41,11 @@ function makeStars(seed: string, count = 42): Star[] {
 interface FateCardProps {
   draw: Pick<Draw, "cardName" | "score" | "category" | "comment">;
   dateLabel: string;
+  username?: string;
 }
 
 const FateCard = forwardRef<HTMLDivElement, FateCardProps>(function FateCard(
-  { draw, dateLabel },
+  { draw, dateLabel, username },
   ref
 ) {
   const stars = useMemo(
@@ -86,7 +87,7 @@ const FateCard = forwardRef<HTMLDivElement, FateCardProps>(function FateCard(
           </h2>
           <div className="ornament" aria-hidden="true">
             <span />
-            ✦
+            <span className="ornament-star" />
             <span />
           </div>
           <div className="card-score">{draw.score}%</div>
@@ -94,8 +95,11 @@ const FateCard = forwardRef<HTMLDivElement, FateCardProps>(function FateCard(
             {emoji}&nbsp;&nbsp;{draw.category}
           </div>
           <p className="card-comment">“{draw.comment}”</p>
+          {username && (
+            <div className="card-username">Drawn by @{username}</div>
+          )}
         </div>
-        <footer className="card-footer">✦&nbsp;&nbsp;FATE DRAW&nbsp;&nbsp;✦</footer>
+        <footer className="card-footer">FATE DRAW</footer>
       </div>
     </div>
   );

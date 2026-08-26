@@ -6,6 +6,24 @@ import { getTodayUTC, shiftUtcDate } from "./utc";
 
 const COMMENTS = commentsJson as unknown as Record<string, CommentCategory>;
 
+/** Base XP per rarity tier. */
+export const BASE_XP: Record<string, number> = {
+  Disaster: 10,
+  Bad: 20,
+  Neutral: 30,
+  Good: 50,
+  Legendary: 100,
+  "Absolute Fate": 200,
+};
+
+/** Streak multiplier thresholds. */
+export const STREAK_MULTIPLIERS: Array<{ minStreak: number; multiplier: number }> = [
+  { minStreak: 14, multiplier: 2.0 },
+  { minStreak: 7, multiplier: 1.5 },
+  { minStreak: 3, multiplier: 1.25 },
+  { minStreak: 0, multiplier: 1.0 },
+];
+
 function pick<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -63,4 +81,19 @@ export function computeStreak(dates: Set<string>, todayUtc: string): number {
     cursor = shiftUtcDate(cursor, -1);
   }
   return streak;
+}
+
+/** Get streak multiplier for XP gain. */
+export function getStreakMultiplier(streak: number): number {
+  for (const { minStreak, multiplier } of STREAK_MULTIPLIERS) {
+    if (streak >= minStreak) return multiplier;
+  }
+  return 1.0;
+}
+
+/** Calculate XP gain for a draw based on category and streak. */
+export function calculateXpGain(category: string, streak: number): number {
+  const base = BASE_XP[category] ?? BASE_XP.Neutral;
+  const multiplier = getStreakMultiplier(streak);
+  return Math.round(base * multiplier);
 }

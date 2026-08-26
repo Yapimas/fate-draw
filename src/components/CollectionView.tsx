@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Draw } from "../types";
+import type { Draw, Profile } from "../types";
 import { CATEGORY_EMOJI, categorySlug } from "../types";
 import { formatShortDate, formatUtcDate } from "../lib/utc";
 import { exportCardImage } from "../lib/exportCard";
@@ -8,11 +8,13 @@ import FateCard from "./FateCard";
 interface CollectionViewProps {
   draws: Draw[]; // most recent first
   streak: number;
+  profile: Profile;
 }
 
-export default function CollectionView({ draws, streak }: CollectionViewProps) {
+export default function CollectionView({ draws, streak, profile }: CollectionViewProps) {
   const [selected, setSelected] = useState<Draw | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showUsername, setShowUsername] = useState(true);
   const modalCardRef = useRef<HTMLDivElement>(null);
 
   const best = draws.reduce((acc, d) => Math.max(acc, d.score), 0);
@@ -24,7 +26,8 @@ export default function CollectionView({ draws, streak }: CollectionViewProps) {
       await exportCardImage(
         modalCardRef.current,
         `fate-${selected.drawDate}.png`,
-        `${selected.cardName} — ${selected.score}% (${selected.category})`
+        `${selected.cardName} — ${selected.score}% (${selected.category})`,
+        showUsername ? profile.username : undefined
       );
     } catch (err) {
       console.error("Card export failed", err);
@@ -89,10 +92,22 @@ export default function CollectionView({ draws, streak }: CollectionViewProps) {
               ref={modalCardRef}
               draw={selected}
               dateLabel={formatUtcDate(selected.drawDate)}
+              username={showUsername ? profile.username : undefined}
             />
-            <button className="btn-secondary" onClick={handleExport} disabled={saving}>
-              {saving ? "Preparing…" : "⬇ Save / Share"}
-            </button>
+            <div className="save-group">
+              <label className="username-checkbox">
+                <input
+                  type="checkbox"
+                  checked={showUsername}
+                  onChange={(e) => setShowUsername(e.target.checked)}
+                  disabled={saving}
+                />
+                <span>Include username</span>
+              </label>
+              <button className="btn-secondary" onClick={handleExport} disabled={saving}>
+                {saving ? "Preparing…" : "⬇ Save"}
+              </button>
+            </div>
           </div>
         </div>
       )}

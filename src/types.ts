@@ -3,6 +3,9 @@ export interface Profile {
   id?: string;
   email: string;
   username: string;
+  xp: number;
+  level: number;
+  totalDraws: number;
 }
 
 export interface Draw {
@@ -31,6 +34,19 @@ export const CATEGORY_EMOJI: Record<string, string> = {
   "Absolute Fate": "🌟",
 };
 
+export const CATEGORY_RARITY_ORDER: string[] = [
+  "Absolute Fate",
+  "Legendary",
+  "Good",
+  "Neutral",
+  "Bad",
+  "Disaster",
+];
+
 export function categorySlug(category: string): string {
   return category.toLowerCase().replace(/\s+/g, "-");
+}
+
+export function getCategoryRarityIndex(category: string): number {
+  return CATEGORY_RARITY_ORDER.indexOf(category);
 }

@@ -1281,3 +1281,400 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------- profile dropdown ---------------- */
+
+.profile-dropdown-wrapper {
+  position: relative;
+}
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.profile-trigger:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(185, 168, 248, 0.4);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, var(--indigo));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+.username {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-dim);
+  transition: transform 0.15s;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: rgba(20, 12, 40, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  animation: fade-in 0.15s ease;
+}
+
+.dropdown-header {
+  padding: 4px 8px 12px;
+}
+
+.xp-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xp-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.xp-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5cf6, var(--indigo));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.dropdown-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 4px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dropdown-item.danger {
+  color: var(--danger);
+}
+
+.dropdown-item.danger:hover {
+  background: rgba(255, 122, 144, 0.1);
+}
+
+/* ---------------- leaderboard ---------------- */
+
+.leaderboard {
+  padding-top: 4px;
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.leaderboard-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.leaderboard-date {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.leaderboard-loading {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 60px 20px;
+}
+
+.leaderboard-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-dim);
+}
+
+.leaderboard-empty .empty-glyph {
+  font-size: 64px;
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.leaderboard-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  transition: transform 0.15s, border-color 0.2s, background 0.2s;
+}
+
+.leaderboard-entry:hover {
+  transform: translateX(4px);
+  border-color: rgba(185, 168, 248, 0.35);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.rank {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.rank.top-1 {
+  background: linear-gradient(135deg, #ffd166, #f3dc9a);
+  color: #1a1030;
+  box-shadow: 0 4px 16px rgba(255, 209, 102, 0.4);
+}
+
+.rank.top-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+  color: #1a1030;
+  box-shadow: 0 4px 16px rgba(192, 192, 192, 0.3);
+}
+
+.rank.top-3 {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(205, 127, 50, 0.3);
+}
+
+.entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-username {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-category {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.entry-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.entry-card-name {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: right;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-score {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- save group with checkbox ---------------- */
+
+.save-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.username-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.username-checkbox:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(185, 168, 248, 0.3);
+}
+
+.username-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--violet);
+  cursor: pointer;
+}
+
+.username-checkbox input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------------- card username ---------------- */
+
+.card-username {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.85;
+}
+
+/* ---------------- responsive adjustments ---------------- */
+
+@media (max-width: 560px) {
+  .profile-trigger .username {
+    display: none;
+  }
+
+  .profile-dropdown {
+    right: -20px;
+    min-width: 200px;
+  }
+
+  .leaderboard-entry {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .entry-card {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .save-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .username-checkbox {
+    width: 100%;
+    justify-content: center;
+  }
+}

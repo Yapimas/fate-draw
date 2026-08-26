@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Draw, Profile } from "./types";
 import { getTodayUTC } from "./lib/utc";
-import { computeStreak, generateDraw } from "./lib/fate";
+import { computeStreak, generateDraw, calculateXpGain } from "./lib/fate";
 import { installGlobalSfx } from "./lib/globalSfx";
 import { SUPABASE_READY, supabase } from "./lib/supabase";
 import { hashPassword } from "./lib/auth";
@@ -25,16 +25,19 @@ import {
   setUsername,
   signOut,
   startAsGuest,
+  addXp,
 } from "./lib/storage";
 import UsernameView from "./components/UsernameView";
 import HomeView from "./components/HomeView";
 import CollectionView from "./components/CollectionView";
+import LeaderboardView from "./components/LeaderboardView";
 import CardPickOverlay from "./components/CardPickOverlay";
 import LegalModal from "./components/LegalModal";
 import LoginView from "./components/LoginView";
 import RegisterView from "./components/RegisterView";
+import ProfileDropdown from "./components/ProfileDropdown";
 
-type View = "loading" | "auth" | "username" | "home" | "collection";
+type View = "loading" | "auth" | "username" | "home" | "collection" | "leaderboard";
 
 export default function App() {
   const [view, setView] = useState<View>("loading");
@@ -117,7 +120,7 @@ export default function App() {
         console.warn("Guest migration skipped", err);
       }
       const prof = await fetchProfile(userId);
-      const p: Profile = { id: userId, email, username: prof?.username ?? "" };
+      const p: Profile = { id: userId, email, username: prof?.username ?? "", xp: 0, level: 1, totalDraws: 0 };
       setProfile(p);
       if (!p.username) {
         setView("username");
@@ -132,7 +135,7 @@ export default function App() {
     const passwordHash = await hashPassword(password);
     const result = registerUser(email, username, passwordHash);
     if ("error" in result) return result.error;
-    const p: Profile = { id: "", email: result.email, username: result.username };
+    const p: Profile = { id: "", email: result.email, username: result.username, xp: 0, level: 1, totalDraws: 0 };
     setProfile(p);
     await refresh(p);
     setView("home");
@@ -143,7 +146,7 @@ export default function App() {
     const passwordHash = await hashPassword(password);
     const result = loginUser(email, passwordHash);
     if ("error" in result) return result.error;
-    const p: Profile = { id: "", email: result.email, username: result.username };
+    const p: Profile = { id: "", email: result.email, username: result.username, xp: result.xp, level: result.level, totalDraws: result.totalDraws };
     setProfile(p);
     await refresh(p);
     setView("home");
@@ -193,6 +196,14 @@ export default function App() {
         console.error("Saving draw failed", err);
       }
     }
+
+    // Award XP
+    const xpGain = calculateXpGain(pendingDraw.category, streak);
+    if (profile.email !== GUEST_EMAIL) {
+      const result = addXp(profile.email, xpGain);
+      setProfile((prev) => prev ? { ...prev, xp: result.xp, level: result.level } : null);
+    }
+
     await refresh(profile);
     setJustDrew(true);
     setPendingDraw(null);
@@ -214,6 +225,10 @@ export default function App() {
     await refresh(p);
     setView("home");
   }
+
+  const handleOpenLeaderboard = () => {
+    setView("leaderboard");
+  };
 
   if (view === "loading") {
     return (
@@ -246,7 +261,7 @@ export default function App() {
     return <UsernameView onSubmit={handleSaveUsername} onSignOut={handleSignOut} />;
   }
 
-  const isSignedIn = Boolean(profile?.id);
+  const isSignedIn = Boolean(profile?.id) && profile?.email !== GUEST_EMAIL;
 
   return (
     <>
@@ -271,14 +286,23 @@ export default function App() {
             >
               Collection
             </button>
+            <button
+              className={`nav-link${view === "leaderboard" ? " active" : ""}`}
+              onClick={() => {
+                if (profile) void refresh(profile);
+                setView("leaderboard");
+              }}
+            >
+              Leaderboard
+            </button>
             <span className="chip streak-chip">🔥 {streak}</span>
             {isSignedIn ? (
-              <>
-                <span className="chip user-chip">@{profile?.username}</span>
-                <button className="nav-link muted" onClick={handleSignOut}>
-                  Sign out
-                </button>
-              </>
+              <ProfileDropdown
+                profile={profile!}
+                streak={streak}
+                onSignOut={handleSignOut}
+                onOpenLeaderboard={handleOpenLeaderboard}
+              />
             ) : (
               <button className="btn-signin" onClick={() => setView("auth")}>
                 Sign in
@@ -297,8 +321,12 @@ export default function App() {
             onUtcRollover={handleUtcRollover}
             onOpenLegal={() => setLegalOpen(true)}
           />
+        ) : view === "collection" && profile ? (
+          <CollectionView draws={draws} streak={streak} profile={profile} />
+        ) : view === "leaderboard" ? (
+          <LeaderboardView />
         ) : (
-          <CollectionView draws={draws} streak={streak} />
+          <CollectionView draws={draws} streak={streak} profile={profile!} />
         )}
       </div>
 
