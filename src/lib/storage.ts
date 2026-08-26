@@ -1,9 +1,12 @@
-import type { Draw, Profile } from "../types";
-import { getCategoryRarityIndex } from "../types";
+import type { Draw, Profile, CardSeries } from "../types";
+import { getCategoryRarityIndex, getSeriesThreshold, getSeriesBonusXp } from "../types";
+
+export { getSeriesThreshold } from "../types";
 
 interface Store {
   users: Record<string, UserRecord>; // keyed by normalized email
   draws: Draw[];
+  series: Record<string, CardSeries>; // keyed by `${email}|${cardKey}`
 }
 
 interface UserRecord extends Profile {
@@ -19,11 +22,16 @@ export const GUEST_EMAIL = "guest";
 function readStore(): Store {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw) as Store;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Store;
+      // Migration for older stores
+      if (!parsed.series) parsed.series = {};
+      return parsed;
+    }
   } catch {
     // corrupted storage — start clean
   }
-  return { users: {}, draws: [] };
+  return { users: {}, draws: [], series: {} };
 }
 
 function writeStore(store: Store): void {
@@ -211,7 +219,7 @@ export function getUserDrawDates(email: string): Set<string> {
   );
 }
 
-export function saveDraw(draw: Draw): void {
+export function saveDraw(draw: Draw): { seriesLeveledUp: boolean; bonusXp: number; newSeriesLevel: number } {
   const store = readStore();
   const exists = store.draws.some(
     (d) => d.userEmail === draw.userEmail && d.drawDate === draw.drawDate
@@ -226,7 +234,52 @@ export function saveDraw(draw: Draw): void {
     user.totalDraws += 1;
   }
 
+  // Track series
+  const cardKey = `${draw.cardName}|${draw.category}`;
+  const seriesKey = `${key}|${cardKey}`;
+  let series = store.series[seriesKey];
+
+  if (!series) {
+    series = {
+      cardKey,
+      cardName: draw.cardName,
+      category: draw.category,
+      count: 0,
+      level: 1,
+      maxCount: getSeriesThreshold(1),
+      bonusXpAwarded: 0,
+    };
+    store.series[seriesKey] = series;
+  }
+
+  series.count += 1;
+
+  // Check for level up
+  let seriesLeveledUp = false;
+  let bonusXp = 0;
+  let newSeriesLevel = series.level;
+
+  while (series.count >= series.maxCount) {
+    series.level += 1;
+    seriesLeveledUp = true;
+    newSeriesLevel = series.level;
+    series.maxCount = getSeriesThreshold(series.level);
+    // Award bonus XP for leveling up
+    const levelBonus = getSeriesBonusXp(draw.category, series.level);
+    bonusXp += levelBonus;
+    if (user && draw.userEmail !== GUEST_EMAIL) {
+      user.xp += levelBonus;
+    }
+    series.bonusXpAwarded += levelBonus;
+  }
+
+  // Update draw with series info
+  draw.seriesLevel = series.level;
+  draw.seriesCount = series.count;
+
   writeStore(store);
+
+  return { seriesLeveledUp, bonusXp, newSeriesLevel };
 }
 
 /** Testing helper: forget today's card so a fresh ceremony can run. */
@@ -312,4 +365,24 @@ export function getDailyLeaderboard(dateUtc: string, limit = 50): LeaderboardEnt
       drawDate: d.drawDate,
     };
   });
+}
+
+/* ---------------- Collection Series ---------------- */
+
+export function getUserSeries(email: string): CardSeries[] {
+  const key = normalizeEmail(email);
+  const store = readStore();
+  return Object.values(store.series)
+    .filter((s) => s.cardKey.startsWith(key + "|") || s.cardKey.startsWith(key)) // fallback
+    .filter((s) => {
+      const parts = s.cardKey.split("|");
+      return parts[0] === key;
+    })
+    .sort((a, b) => {
+      // Sort by level desc, then by rarity
+      if (b.level !== a.level) return b.level - a.level;
+      const rarityA = getCategoryRarityIndex(a.category);
+      const rarityB = getCategoryRarityIndex(b.category);
+      return rarityA - rarityB;
+    });
 }

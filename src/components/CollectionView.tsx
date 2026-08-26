@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import type { Draw, Profile } from "../types";
-import { CATEGORY_EMOJI, categorySlug } from "../types";
-import { formatShortDate, formatUtcDate } from "../lib/utc";
+import { categorySlug } from "../types";
+import { formatUtcDate } from "../lib/utc";
 import { exportCardImage } from "../lib/exportCard";
+import { getUserSeries, getSeriesThreshold } from "../lib/storage";
 import FateCard from "./FateCard";
+import MiniFateCard from "./MiniFateCard";
 
 interface CollectionViewProps {
   draws: Draw[]; // most recent first
@@ -18,6 +20,20 @@ export default function CollectionView({ draws, streak, profile }: CollectionVie
   const modalCardRef = useRef<HTMLDivElement>(null);
 
   const best = draws.reduce((acc, d) => Math.max(acc, d.score), 0);
+
+  // Compute series info for each draw
+  const seriesMap = useMemo(() => {
+    const series = getUserSeries(profile.email);
+    const map = new Map<string, { level: number; count: number; maxCount: number }>();
+    for (const s of series) {
+      map.set(`${s.cardName}|${s.category}`, {
+        level: s.level,
+        count: s.count,
+        maxCount: getSeriesThreshold(s.level),
+      });
+    }
+    return map;
+  }, [profile.email]);
 
   async function handleExport() {
     if (!selected || !modalCardRef.current || saving) return;
@@ -60,17 +76,27 @@ export default function CollectionView({ draws, streak, profile }: CollectionVie
         </span>
       </div>
 
-      <div className="grid">
-        {draws.map((d) => (
-          <button key={d.id} className="tile" onClick={() => setSelected(d)}>
-            <span className={`tile-cat cat-${categorySlug(d.category)}`}>
-              {CATEGORY_EMOJI[d.category] ?? "🃏"} {d.category}
-            </span>
-            <span className="tile-name">{d.cardName}</span>
-            <span className="tile-score">{d.score}%</span>
-            <span className="tile-date">{formatShortDate(d.drawDate)}</span>
-          </button>
-        ))}
+      <div className="mini-grid">
+        {draws.map((d) => {
+          const seriesInfo = seriesMap.get(`${d.cardName}|${d.category}`);
+          return (
+            <button
+              key={d.id}
+              className="mini-card-wrapper"
+              onClick={() => setSelected(d)}
+              data-category={categorySlug(d.category)}
+            >
+              <MiniFateCard
+                draw={d}
+                dateLabel={formatUtcDate(d.drawDate)}
+                username={profile.username}
+                seriesLevel={seriesInfo?.level}
+                seriesCount={seriesInfo?.count}
+                seriesMax={seriesInfo?.maxCount}
+              />
+            </button>
+          );
+        })}
       </div>
 
       {selected && (

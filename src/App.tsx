@@ -188,7 +188,12 @@ export default function App() {
       if (profile.id && supabase) {
         await saveDrawDb(pendingDraw, profile.id);
       } else {
-        saveDraw(pendingDraw);
+        const seriesResult = saveDraw(pendingDraw);
+        // Award series bonus XP
+        if (seriesResult.seriesLeveledUp && profile.email !== GUEST_EMAIL) {
+          const result = addXp(profile.email, seriesResult.bonusXp);
+          setProfile((prev) => prev ? { ...prev, xp: result.xp, level: result.level } : null);
+        }
       }
     } catch (err) {
       // already recorded (other tab) — surface the existing card instead
@@ -197,7 +202,7 @@ export default function App() {
       }
     }
 
-    // Award XP
+    // Award base XP
     const xpGain = calculateXpGain(pendingDraw.category, streak);
     if (profile.email !== GUEST_EMAIL) {
       const result = addXp(profile.email, xpGain);
@@ -261,7 +266,7 @@ export default function App() {
     return <UsernameView onSubmit={handleSaveUsername} onSignOut={handleSignOut} />;
   }
 
-  const isSignedIn = Boolean(profile?.id) && profile?.email !== GUEST_EMAIL;
+  const isSignedIn = Boolean(profile?.username) && profile?.email !== GUEST_EMAIL;
 
   return (
     <>

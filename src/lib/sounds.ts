@@ -273,11 +273,13 @@ const N = {
   E5: 659.26,
   G5: 783.99,
   A5: 880.0,
+  B5: 987.77,
   C6: 1046.5,
   D6: 1174.66,
   E6: 1318.51,
   G6: 1567.98,
   C7: 2093.0,
+  E7: 2637.02,
 };
 
 export type RewardTier = "doom" | "sad" | "plain" | "bright" | "epic" | "mythic";
@@ -350,7 +352,7 @@ export function rewardTierFor(category: string): RewardTier {
 /**
  * Rarity-scaled payoff. Returns approximate duration in seconds so the UI
  * can pace what happens next. Doom is a comic deflation, mythic is a full
- * dopamine cascade.
+ * dopamine cascade. All tiers now have satisfying reward sounds.
  */
 export function playReward(tier: RewardTier): number {
   try {
@@ -358,40 +360,75 @@ export function playReward(tier: RewardTier): number {
     const t0 = c.currentTime + 0.03;
     switch (tier) {
       case "doom": {
+        // Disaster - comic deflation but still a "reward" sound
         thud(98, 0.2);
         const seq = [N.E4, N.D4, N.C4];
         seq.forEach((f, i) => bell(f, t0 + 0.05 + i * 0.3, 0.12, 0.6));
+        // Add a small "pity" chime at the end
+        setTimeout(() => {
+          try {
+            const c2 = ac();
+            const t2 = c2.currentTime;
+            bell(N.C5, t2, 0.08, 0.4);
+          } catch {}
+        }, 1200);
         return 1.5;
       }
       case "sad": {
+        // Bad - gentle consolation prize feel
         bell(N.G4, t0, 0.11, 0.7);
         bell(N.E4, t0 + 0.28, 0.1, 0.8);
-        return 1.2;
+        // Rising "better luck next time" motif
+        [N.C4, N.D4, N.E4].forEach((f, i) => bell(f, t0 + 0.7 + i * 0.12, 0.08, 0.5));
+        shimmer(t0 + 0.7, 0.6, 0.03);
+        return 1.5;
       }
       case "plain": {
-        bell(N.C5, t0, 0.12, 0.7);
-        bell(N.G4, t0 + 0.16, 0.1, 0.9);
-        shimmer(t0 + 0.1, 0.7, 0.025);
-        return 1.2;
+        // Neutral - satisfying "you got something" feel
+        bell(N.C5, t0, 0.14, 0.7);
+        bell(N.G4, t0 + 0.12, 0.12, 0.8);
+        bell(N.E5, t0 + 0.24, 0.1, 0.9);
+        // Mini ascending arpeggio for dopamine
+        [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => bell(f, t0 + 0.4 + i * 0.06, 0.11, 0.7));
+        shimmer(t0 + 0.4, 0.8, 0.04);
+        brass(N.C4, t0 + 0.5, 0.05, 0.8);
+        return 1.8;
       }
       case "bright": {
+        // Good - clear dopamine hit, "nice reward" feel
         const run = [N.C5, N.E5, N.G5, N.C6];
-        run.forEach((f, i) => bell(f, t0 + i * 0.09, 0.14, 1.1));
-        brass(N.C5, t0 + 0.05, 0.045, 0.7);
-        shimmer(t0 + 0.25, 1.0, 0.045);
-        return 1.9;
+        run.forEach((f, i) => bell(f, t0 + i * 0.08, 0.15, 1.1));
+        brass(N.C5, t0 + 0.05, 0.05, 0.8);
+        // Second wave
+        [N.E5, N.G5, N.B5, N.D6].forEach((f, i) => bell(f, t0 + 0.45 + i * 0.07, 0.12, 1.0));
+        shimmer(t0 + 0.25, 1.2, 0.05);
+        brass(N.E4, t0 + 0.6, 0.05, 1.0);
+        return 2.3;
       }
       case "epic": {
+        // Legendary - strong dopamine cascade, "big win" feel
         thud(110, 0.24);
-        [N.C4, N.E4, N.G4].forEach((f) => brass(f, t0 + 0.04, 0.06, 1.0));
+        [N.C4, N.E4, N.G4].forEach((f) => brass(f, t0 + 0.04, 0.07, 1.1));
         const run = [N.C5, N.E5, N.G5, N.C6, N.E6];
-        run.forEach((f, i) => bell(f, t0 + 0.18 + i * 0.075, 0.16, 1.5));
-        shimmer(t0 + 0.3, 1.5, 0.06);
-        bell(N.G5, t0 + 0.95, 0.1, 1.6);
-        return 2.7;
+        run.forEach((f, i) => bell(f, t0 + 0.18 + i * 0.07, 0.18, 1.6));
+        // Cascading arpeggio up and down
+        const cascade = [N.C6, N.B5, N.A5, N.G5, N.E5, N.C5];
+        cascade.forEach((f, i) => bell(f, t0 + 0.6 + i * 0.05, 0.14, 1.2));
+        shimmer(t0 + 0.3, 1.8, 0.07);
+        brass(N.G4, t0 + 0.8, 0.06, 1.3);
+        bell(N.G5, t0 + 1.1, 0.12, 1.8);
+        // Final sparkle
+        setTimeout(() => {
+          try {
+            const c2 = ac();
+            const t2 = c2.currentTime;
+            [N.C7, N.E7].forEach((f, i) => bell(f, t2 + i * 0.1, 0.1, 1.5));
+          } catch {}
+        }, 1800);
+        return 3.2;
       }
       case "mythic": {
-        // Slot machine style win sound for Absolute Fate
+        // Absolute Fate - maximum dopamine, slot machine jackpot
         playSlotMachineWin(c, t0);
         // riser
         const rise = c.createOscillator();
@@ -406,15 +443,16 @@ export function playReward(tier: RewardTier): number {
         shimmer(t0, 0.55, 0.05);
         // impact + grand chord
         thud(65, 0.3);
-        [N.C4, N.E4, N.G4, N.C5].forEach((f) => brass(f, t0 + 0.55, 0.07, 1.5));
+        [N.C4, N.E4, N.G4, N.C5].forEach((f) => brass(f, t0 + 0.55, 0.08, 1.6));
         // cascading bell run
         const run = [N.C5, N.D5, N.E5, N.G5, N.A5, N.C6, N.D6, N.E6];
-        run.forEach((f, i) => bell(f, t0 + 0.6 + i * 0.06, 0.17, 1.9));
-        shimmer(t0 + 0.7, 1.9, 0.08);
+        run.forEach((f, i) => bell(f, t0 + 0.6 + i * 0.055, 0.18, 2.0));
+        shimmer(t0 + 0.7, 2.2, 0.1);
         // final halo
-        bell(N.C6, t0 + 1.25, 0.13, 2.4);
-        bell(N.E6, t0 + 1.33, 0.11, 2.4);
-        return 5.5;
+        bell(N.C6, t0 + 1.4, 0.15, 2.8);
+        bell(N.E6, t0 + 1.5, 0.13, 2.8);
+        bell(N.G6, t0 + 1.6, 0.11, 2.8);
+        return 6.0;
       }
     }
   } catch {}
