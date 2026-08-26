@@ -14,6 +14,7 @@ interface HomeViewProps {
   onDraw: () => void;
   onRedraw: () => void;
   onUtcRollover: () => void;
+  onOpenLegal: () => void;
 }
 
 function Countdown({ onComplete }: { onComplete: () => void }) {
@@ -49,6 +50,7 @@ export default function HomeView({
   onDraw,
   onRedraw,
   onUtcRollover,
+  onOpenLegal,
 }: HomeViewProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
@@ -89,7 +91,11 @@ export default function HomeView({
           One draw per day · resets at midnight UTC ·{" "}
           {profile.email === GUEST_EMAIL
             ? "playing as guest — sign in anytime"
-            : `hey ${profile.username} 👋`}
+            : `hey ${profile.username} 👋`}{" "}
+          ·{" "}
+          <button className="hint-link" onClick={onOpenLegal}>
+            Terms &amp; Privacy
+          </button>
         </p>
       </section>
     );

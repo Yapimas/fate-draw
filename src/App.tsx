@@ -32,6 +32,7 @@ import UsernameView from "./components/UsernameView";
 import HomeView from "./components/HomeView";
 import CollectionView from "./components/CollectionView";
 import CardPickOverlay from "./components/CardPickOverlay";
+import LegalModal from "./components/LegalModal";
 
 type View = "loading" | "auth" | "username" | "home" | "collection";
 
@@ -45,6 +46,7 @@ export default function App() {
   const [draws, setDraws] = useState<Draw[]>([]);
   const [streak, setStreak] = useState(0);
   const [pendingDraw, setPendingDraw] = useState<Draw | null>(null);
+  const [legalOpen, setLegalOpen] = useState(false);
   const [testMode, setTestMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem(TEST_MODE_KEY) === "1";
@@ -263,6 +265,7 @@ export default function App() {
         onSendLink={handleSendLink}
         onOpenLink={handleOpenLink}
         onCancel={() => setView("home")}
+        onOpenLegal={() => setLegalOpen(true)}
       />
     );
   }
@@ -330,6 +333,7 @@ export default function App() {
             onDraw={handleDraw}
             onRedraw={handleRedraw}
             onUtcRollover={handleUtcRollover}
+            onOpenLegal={() => setLegalOpen(true)}
           />
         ) : (
           <CollectionView draws={draws} streak={streak} />
@@ -339,6 +343,8 @@ export default function App() {
       {pendingDraw && (
         <CardPickOverlay draw={pendingDraw} onFinish={handleCeremonyFinish} />
       )}
+
+      {legalOpen && <LegalModal onClose={() => setLegalOpen(false)} />}
     </>
   );
 }

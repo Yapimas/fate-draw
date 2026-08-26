@@ -8,9 +8,16 @@ interface AuthViewProps {
   onSendLink: (email: string) => Promise<void>;
   onOpenLink: (email: string) => void;
   onCancel: () => void;
+  onOpenLegal: () => void;
 }
 
-export default function AuthView({ mode, onSendLink, onOpenLink, onCancel }: AuthViewProps) {
+export default function AuthView({
+  mode,
+  onSendLink,
+  onOpenLink,
+  onCancel,
+  onOpenLegal,
+}: AuthViewProps) {
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -118,6 +125,9 @@ export default function AuthView({ mode, onSendLink, onOpenLink, onCancel }: Aut
 
       <button className="link-btn" onClick={onCancel}>
         Maybe later — keep playing as a guest
+      </button>
+      <button className="link-btn dim-link" onClick={onOpenLegal}>
+        Terms &amp; Privacy
       </button>
     </main>
   );
