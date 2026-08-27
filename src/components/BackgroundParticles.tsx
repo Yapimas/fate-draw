@@ -7,14 +7,28 @@ interface Particle {
   vy: number;
   size: number;
   opacity: number;
-  hue: number;
+  color: { r: number; g: number; b: number; baseOpacity: number };
   life: number;
   maxLife: number;
 }
 
-const PARTICLE_COUNT = 80;
-const REPULSION_FORCE = 0.8;
-const MOUSE_INFLUENCE_RADIUS = 200;
+const PARTICLE_COUNT = 40;
+const MOUSE_INFLUENCE_RADIUS = 180;
+const REPULSION_FORCE = 0.3;
+const FALL_SPEED = 0.15;
+const DRIFT_SPEED = 0.03;
+
+// Colors matching the 4 static "dead pixels" in the background (white with varying opacity)
+// plus subtle theme colors from the large gradients
+const PARTICLE_COLORS = [
+  { r: 255, g: 255, b: 255, baseOpacity: 0.35 },  // matches 12% 22%
+  { r: 255, g: 255, b: 255, baseOpacity: 0.28 },  // matches 78% 14%
+  { r: 255, g: 255, b: 255, baseOpacity: 0.22 },  // matches 88% 62%
+  { r: 255, g: 255, b: 255, baseOpacity: 0.25 },  // matches 34% 78%
+  { r: 255, g: 255, b: 255, baseOpacity: 0.18 },  // matches 55% 42%
+  { r: 124, g: 58, b: 237, baseOpacity: 0.15 },   // violet from large gradient
+  { r: 79, g: 70, b: 229, baseOpacity: 0.12 },    // indigo from large gradient
+];
 
 export default function BackgroundParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,17 +53,20 @@ export default function BackgroundParticles() {
     };
 
     const initParticles = (w: number, h: number) => {
-      particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 2 + 0.5,
-        opacity: Math.random() * 0.3 + 0.1,
-        hue: Math.random() * 60 + 260, // Purple to blue range
-        life: 0,
-        maxLife: Math.random() * 10000 + 5000,
-      }));
+      particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => {
+        const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * DRIFT_SPEED,
+          vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
+          size: Math.random() * 1.5 + 0.5,
+          opacity: color.baseOpacity * (0.5 + Math.random() * 0.5),
+          color,
+          life: 0,
+          maxLife: Math.random() * 20000 + 15000,
+        };
+      });
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -69,7 +86,7 @@ export default function BackgroundParticles() {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) return;
-      
+
       const { width, height } = dimensions;
       if (!width || !height) {
         animationRef.current = requestAnimationFrame(animate);
@@ -82,7 +99,7 @@ export default function BackgroundParticles() {
       const mouse = mouseRef.current;
 
       for (const p of particlesRef.current) {
-        // Mouse interaction
+        // Gentle mouse repulsion
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.hypot(dx, dy);
@@ -90,67 +107,50 @@ export default function BackgroundParticles() {
         if (dist < MOUSE_INFLUENCE_RADIUS && dist > 0) {
           const force = (1 - dist / MOUSE_INFLUENCE_RADIUS) * REPULSION_FORCE;
           const angle = Math.atan2(dy, dx);
-          p.vx -= Math.cos(angle) * force * 0.5;
-          p.vy -= Math.sin(angle) * force * 0.5;
+          p.vx -= Math.cos(angle) * force * 0.1;
+          p.vy -= Math.sin(angle) * force * 0.1;
         }
 
-        // Physics
+        // Gentle snowfall physics
         p.x += p.vx;
         p.y += p.vy;
-        p.vx *= 0.99;
-        p.vy *= 0.99;
+        p.vx *= 0.995;
+        p.vy = Math.max(FALL_SPEED * 0.3, p.vy * 0.998);
 
-        // Boundary wrap
+        // Boundary wrap - respawn at top when falling off bottom
+        if (p.y > height + 10) {
+          p.y = -10;
+          p.x = Math.random() * width;
+          p.vx = (Math.random() - 0.5) * DRIFT_SPEED;
+          p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
+        }
         if (p.x < -10) p.x = width + 10;
         if (p.x > width + 10) p.x = -10;
-        if (p.y < -10) p.y = height + 10;
-        if (p.y > height + 10) p.y = -10;
 
-        // Life cycle
+        // Life cycle - occasional full reset
         p.life++;
         if (p.life > p.maxLife) {
           p.x = Math.random() * width;
-          p.y = Math.random() * height;
-          p.vx = (Math.random() - 0.5) * 0.3;
-          p.vy = (Math.random() - 0.5) * 0.3;
+          p.y = -10;
+          p.vx = (Math.random() - 0.5) * DRIFT_SPEED;
+          p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
           p.life = 0;
-          p.maxLife = Math.random() * 10000 + 5000;
+          p.maxLife = Math.random() * 20000 + 15000;
+          const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+          p.color = color;
+          p.opacity = color.baseOpacity * (0.5 + Math.random() * 0.5);
+          p.size = Math.random() * 1.5 + 0.5;
         }
 
-        // Draw
+        // Draw - simple white/colored dots, no glow, no connections
         const lifeRatio = p.life / p.maxLife;
-        const currentOpacity = p.opacity * (1 - lifeRatio * 0.5);
-        const currentSize = p.size * (0.5 + lifeRatio * 0.5);
+        const currentOpacity = p.opacity * (1 - lifeRatio * 0.3);
+        const currentSize = p.size * (0.7 + lifeRatio * 0.3);
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 70%, 65%, ${currentOpacity})`;
+        ctx.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${currentOpacity})`;
         ctx.fill();
-
-        // Glow effect
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, currentSize * 2, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 70%, 65%, ${currentOpacity * 0.15})`;
-        ctx.fill();
-      }
-
-      // Draw connections between nearby particles
-      ctx.strokeStyle = "hsla(280, 70%, 65%, 0.03)";
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        for (let j = i + 1; j < particlesRef.current.length; j++) {
-          const p1 = particlesRef.current[i];
-          const p2 = particlesRef.current[j];
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-        }
       }
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
