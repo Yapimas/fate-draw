@@ -17,7 +17,7 @@ interface Particle {
 const PARTICLE_COUNT = 150;
 const MOUSE_INFLUENCE_RADIUS = 200;
 const REPULSION_FORCE = 0.15;
-const FALL_SPEED = 0.06;
+const FALL_SPEED = 0.0006;
 const DRIFT_SPEED = 0.01;
 const GROUND_FRICTION = 0.96;
 const MAX_GROUND_HEIGHT = 180;
@@ -186,7 +186,7 @@ export default function BackgroundParticles() {
 
           if (p.grounded) {
             p.x += p.vx;
-            p.vy += 0.03;
+            p.vy += 0.0003;
             p.y += p.vy;
             p.vx *= GROUND_FRICTION;
             
