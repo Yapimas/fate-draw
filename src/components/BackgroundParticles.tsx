@@ -12,7 +12,7 @@ interface Particle {
   maxLife: number;
 }
 
-const PARTICLE_COUNT = 30;
+const PARTICLE_COUNT = 60;
 const MOUSE_INFLUENCE_RADIUS = 150;
 const REPULSION_FORCE = 0.15;
 const FALL_SPEED = 0.08;
@@ -20,10 +20,10 @@ const DRIFT_SPEED = 0.015;
 
 // Colors matching the large background gradients (violet/indigo) + subtle white
 const PARTICLE_COLORS = [
-  { r: 124, g: 58, b: 237, baseOpacity: 0.12 },   // violet from large gradient
-  { r: 79, g: 70, b: 229, baseOpacity: 0.10 },    // indigo from large gradient
-  { r: 185, g: 168, b: 248, baseOpacity: 0.08 },  // lavender
-  { r: 255, g: 255, b: 255, baseOpacity: 0.06 },  // very subtle white
+  { r: 124, g: 58, b: 237, baseOpacity: 0.25 },   // violet from large gradient
+  { r: 79, g: 70, b: 229, baseOpacity: 0.22 },    // indigo from large gradient
+  { r: 185, g: 168, b: 248, baseOpacity: 0.20 },  // lavender
+  { r: 255, g: 255, b: 255, baseOpacity: 0.18 },  // subtle white
 ];
 
 export default function BackgroundParticles() {
@@ -56,7 +56,7 @@ export default function BackgroundParticles() {
           y: Math.random() * h,
           vx: (Math.random() - 0.5) * DRIFT_SPEED,
           vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
-          size: Math.random() * 1.2 + 0.4,
+          size: Math.random() * 2.5 + 0.8,
           opacity: color.baseOpacity * (0.5 + Math.random() * 0.5),
           color,
           life: 0,
@@ -135,7 +135,7 @@ export default function BackgroundParticles() {
           const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
           p.color = color;
           p.opacity = color.baseOpacity * (0.5 + Math.random() * 0.5);
-          p.size = Math.random() * 1.2 + 0.4;
+          p.size = Math.random() * 2.5 + 0.8;
         }
 
         // Draw - simple dots, no glow
