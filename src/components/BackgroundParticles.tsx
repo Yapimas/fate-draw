@@ -12,22 +12,18 @@ interface Particle {
   maxLife: number;
 }
 
-const PARTICLE_COUNT = 40;
-const MOUSE_INFLUENCE_RADIUS = 180;
-const REPULSION_FORCE = 0.3;
-const FALL_SPEED = 0.15;
-const DRIFT_SPEED = 0.03;
+const PARTICLE_COUNT = 30;
+const MOUSE_INFLUENCE_RADIUS = 150;
+const REPULSION_FORCE = 0.15;
+const FALL_SPEED = 0.08;
+const DRIFT_SPEED = 0.015;
 
-// Colors matching the 4 static "dead pixels" in the background (white with varying opacity)
-// plus subtle theme colors from the large gradients
+// Colors matching the large background gradients (violet/indigo) + subtle white
 const PARTICLE_COLORS = [
-  { r: 255, g: 255, b: 255, baseOpacity: 0.35 },  // matches 12% 22%
-  { r: 255, g: 255, b: 255, baseOpacity: 0.28 },  // matches 78% 14%
-  { r: 255, g: 255, b: 255, baseOpacity: 0.22 },  // matches 88% 62%
-  { r: 255, g: 255, b: 255, baseOpacity: 0.25 },  // matches 34% 78%
-  { r: 255, g: 255, b: 255, baseOpacity: 0.18 },  // matches 55% 42%
-  { r: 124, g: 58, b: 237, baseOpacity: 0.15 },   // violet from large gradient
-  { r: 79, g: 70, b: 229, baseOpacity: 0.12 },    // indigo from large gradient
+  { r: 124, g: 58, b: 237, baseOpacity: 0.12 },   // violet from large gradient
+  { r: 79, g: 70, b: 229, baseOpacity: 0.10 },    // indigo from large gradient
+  { r: 185, g: 168, b: 248, baseOpacity: 0.08 },  // lavender
+  { r: 255, g: 255, b: 255, baseOpacity: 0.06 },  // very subtle white
 ];
 
 export default function BackgroundParticles() {
@@ -60,11 +56,11 @@ export default function BackgroundParticles() {
           y: Math.random() * h,
           vx: (Math.random() - 0.5) * DRIFT_SPEED,
           vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
-          size: Math.random() * 1.5 + 0.5,
+          size: Math.random() * 1.2 + 0.4,
           opacity: color.baseOpacity * (0.5 + Math.random() * 0.5),
           color,
           life: 0,
-          maxLife: Math.random() * 20000 + 15000,
+          maxLife: Math.random() * 30000 + 20000,
         };
       });
     };
@@ -99,7 +95,7 @@ export default function BackgroundParticles() {
       const mouse = mouseRef.current;
 
       for (const p of particlesRef.current) {
-        // Gentle mouse repulsion
+        // Very gentle mouse repulsion
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.hypot(dx, dy);
@@ -107,15 +103,15 @@ export default function BackgroundParticles() {
         if (dist < MOUSE_INFLUENCE_RADIUS && dist > 0) {
           const force = (1 - dist / MOUSE_INFLUENCE_RADIUS) * REPULSION_FORCE;
           const angle = Math.atan2(dy, dx);
-          p.vx -= Math.cos(angle) * force * 0.1;
-          p.vy -= Math.sin(angle) * force * 0.1;
+          p.vx -= Math.cos(angle) * force * 0.05;
+          p.vy -= Math.sin(angle) * force * 0.05;
         }
 
-        // Gentle snowfall physics
+        // Very gentle snowfall physics
         p.x += p.vx;
         p.y += p.vy;
-        p.vx *= 0.995;
-        p.vy = Math.max(FALL_SPEED * 0.3, p.vy * 0.998);
+        p.vx *= 0.998;
+        p.vy = Math.max(FALL_SPEED * 0.2, p.vy * 0.999);
 
         // Boundary wrap - respawn at top when falling off bottom
         if (p.y > height + 10) {
@@ -135,17 +131,17 @@ export default function BackgroundParticles() {
           p.vx = (Math.random() - 0.5) * DRIFT_SPEED;
           p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
           p.life = 0;
-          p.maxLife = Math.random() * 20000 + 15000;
+          p.maxLife = Math.random() * 30000 + 20000;
           const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
           p.color = color;
           p.opacity = color.baseOpacity * (0.5 + Math.random() * 0.5);
-          p.size = Math.random() * 1.5 + 0.5;
+          p.size = Math.random() * 1.2 + 0.4;
         }
 
-        // Draw - simple white/colored dots, no glow, no connections
+        // Draw - simple dots, no glow
         const lifeRatio = p.life / p.maxLife;
-        const currentOpacity = p.opacity * (1 - lifeRatio * 0.3);
-        const currentSize = p.size * (0.7 + lifeRatio * 0.3);
+        const currentOpacity = p.opacity * (1 - lifeRatio * 0.2);
+        const currentSize = p.size * (0.8 + lifeRatio * 0.2);
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
