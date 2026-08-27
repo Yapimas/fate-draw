@@ -14,20 +14,20 @@ interface Particle {
   groundY: number;
 }
 
-const PARTICLE_COUNT = 80;
+const PARTICLE_COUNT = 100;
 const MOUSE_INFLUENCE_RADIUS = 180;
 const REPULSION_FORCE = 0.12;
-const FALL_SPEED = 0.025;
-const DRIFT_SPEED = 0.008;
-const GROUND_FRICTION = 0.92;
-const MAX_GROUND_HEIGHT = 120;
-const PARTICLE_SPACING = 1.2;
+const FALL_SPEED = 0.008;
+const DRIFT_SPEED = 0.005;
+const GROUND_FRICTION = 0.95;
+const MAX_GROUND_HEIGHT = 150;
+const GROUND_COLUMNS = 200;
 
 const PARTICLE_COLORS = [
-  { r: 124, g: 58, b: 237, baseOpacity: 0.45 },
-  { r: 79, g: 70, b: 229, baseOpacity: 0.42 },
-  { r: 185, g: 168, b: 248, baseOpacity: 0.40 },
-  { r: 255, g: 255, b: 255, baseOpacity: 0.38 },
+  { r: 124, g: 58, b: 237, baseOpacity: 0.65 },
+  { r: 79, g: 70, b: 229, baseOpacity: 0.62 },
+  { r: 185, g: 168, b: 248, baseOpacity: 0.60 },
+  { r: 255, g: 255, b: 255, baseOpacity: 0.58 },
 ];
 
 export default function BackgroundParticles() {
@@ -51,12 +51,11 @@ export default function BackgroundParticles() {
       canvas.style.height = `${height}px`;
       setDimensions({ width, height });
       initParticles(width, height);
-      initGround(width);
+      initGround();
     };
 
-    const initGround = (w: number) => {
-      const cols = Math.ceil(w / (PARTICLE_SPACING * 2));
-      groundRef.current = Array(cols).fill(0);
+    const initGround = () => {
+      groundRef.current = Array(GROUND_COLUMNS).fill(0);
     };
 
     const initParticles = (w: number, h: number) => {
@@ -64,14 +63,14 @@ export default function BackgroundParticles() {
         const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
         return {
           x: Math.random() * w,
-          y: Math.random() * h * 0.5,
+          y: Math.random() * h * 0.3,
           vx: (Math.random() - 0.5) * DRIFT_SPEED,
           vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
           size: Math.random() * 3 + 1,
-          opacity: color.baseOpacity * (0.6 + Math.random() * 0.4),
+          opacity: color.baseOpacity * (0.7 + Math.random() * 0.3),
           color,
           life: 0,
-          maxLife: Math.random() * 50000 + 30000,
+          maxLife: Math.random() * 80000 + 50000,
           grounded: false,
           groundY: h,
         };
@@ -91,14 +90,14 @@ export default function BackgroundParticles() {
       if (cols === 0) return;
       const idx = Math.floor((x / w) * cols);
       const clamped = Math.max(0, Math.min(cols - 1, idx));
-      const newHeight = Math.min(MAX_GROUND_HEIGHT, groundRef.current[clamped] + size * PARTICLE_SPACING);
+      const newHeight = Math.min(MAX_GROUND_HEIGHT, groundRef.current[clamped] + size * 1.5);
       groundRef.current[clamped] = newHeight;
       // Smooth neighboring columns
-      const spread = Math.max(1, Math.floor(size * 0.5));
+      const spread = Math.max(2, Math.floor(size * 0.8));
       for (let i = 1; i <= spread; i++) {
         const factor = 1 - i / (spread + 1);
-        if (clamped - i >= 0) groundRef.current[clamped - i] = Math.max(groundRef.current[clamped - i], newHeight * factor * 0.6);
-        if (clamped + i < cols) groundRef.current[clamped + i] = Math.max(groundRef.current[clamped + i], newHeight * factor * 0.6);
+        if (clamped - i >= 0) groundRef.current[clamped - i] = Math.max(groundRef.current[clamped - i], newHeight * factor * 0.7);
+        if (clamped + i < cols) groundRef.current[clamped + i] = Math.max(groundRef.current[clamped + i], newHeight * factor * 0.7);
       }
     };
 
@@ -161,8 +160,8 @@ export default function BackgroundParticles() {
           // Falling physics
           p.x += p.vx;
           p.y += p.vy;
-          p.vx *= 0.995;
-          p.vy = Math.max(FALL_SPEED * 0.15, p.vy * 0.998);
+          p.vx *= 0.998;
+          p.vy = Math.max(FALL_SPEED * 0.1, p.vy * 0.9995);
 
           // Check ground collision
           const groundH = getGroundHeightAt(p.x, width);
@@ -223,10 +222,10 @@ export default function BackgroundParticles() {
           p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
           p.grounded = false;
           p.life = 0;
-          p.maxLife = Math.random() * 50000 + 30000;
+          p.maxLife = Math.random() * 80000 + 50000;
           const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
           p.color = color;
-          p.opacity = color.baseOpacity * (0.6 + Math.random() * 0.4);
+          p.opacity = color.baseOpacity * (0.7 + Math.random() * 0.3);
           p.size = Math.random() * 3 + 1;
         }
 
