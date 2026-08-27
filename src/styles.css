@@ -1180,6 +1180,40 @@ button {
   filter: brightness(1.08);
 }
 
+.btn-particles-toggle {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-family: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-particles-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(185, 168, 248, 0.4);
+  transform: scale(1.05);
+}
+
+.btn-particles-toggle:active {
+  transform: scale(0.98);
+}
+
+.btn-particles-toggle[aria-pressed="true"] {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
+}
+
 .user-chip {
   color: var(--lavender);
   max-width: 160px;
