@@ -9,12 +9,17 @@ One fate card a day. A random adjective + noun becomes your destiny ("Feral Land
 - **One draw per day, per user**, resetting at **midnight UTC** (not local time). If you've already drawn, the app silently shows today's card again with a friendly note — never an error.
 - **Streaks**: +1 for each consecutive UTC day; miss a day and it's back to 0.
 - **Collection page**: every past card with date, score, category and comment, most recent first. Tap any tile to reopen the full card and re-download it.
-- **Shareable 9:16 card** (mobile story format) in dark tarot styling. "Save" exports a high-res PNG (~1080×1920), copies to clipboard, uses the native share sheet on supporting devices (Instagram/WhatsApp), or downloads the file.
+- **Miniature card grid**: 9:16 mini cards with category-themed borders, starfields, and series badges.
+- **Collection Series System**: drawing the same card multiple times stacks it into a series. Series levels up at thresholds (3, 6, 10, 15, 21... cards) and awards bonus XP per level.
+- **Shareable 9:16 card** (mobile story format) in dark tarot styling. "Save" downloads a high-res PNG (~1080×1920) with optional "Drawn by @username" footer.
 - **Card-pick ceremony with synthesized sound**: a burst of cards flies out, three face-down survivors remain, you pick one, the losers shatter into fragments, and your card spins down like a slot reel with synced ticks — capped by a reward fanfare that scales with rarity (Disaster's comic deflation → Absolute Fate's full dopamine cascade with slot machine win sound). All SFX are generated live with the Web Audio API (`src/lib/sounds.ts`), no audio files needed.
-- **Terms & Privacy modal** with entertainment disclaimer.
-- **XP & Level system**: earn XP based on card rarity + streak multiplier, level up over time.
-- **Daily Leaderboard**: see top draws of the day sorted by rarity.
-- **Profile dropdown**: click your avatar to see XP, level, stats, and sign out.
+- **Interactive background particles**: calm snowfall of violet/indigo/lavender dots that gently repel from the mouse cursor.
+- **Terms of Service modal** with full terms including self-service account reset.
+- **Legal/Privacy modal** with entertainment disclaimer and data deletion info.
+- **Account Reset**: self-service "Reset Account" button in profile dropdown — permanently deletes all data (draws, XP, level, streak, series) while keeping username available for re-registration.
+- **XP & Level system**: earn XP based on card rarity + streak multiplier, level up over time. Progress bar in profile dropdown.
+- **Daily Leaderboard**: see top draws of the day sorted by rarity (gold/silver/bronze for top 3).
+- **Profile dropdown**: click your avatar to see XP, level, stats, Terms of Service, Reset Account, and Sign out.
 
 ## Quick start
 
@@ -34,10 +39,10 @@ npm run preview  # serve the production build locally
 
 Everything lives in `localStorage` under the `fatedraw.*` keys:
 
-| Key                    | Contents                                   |
-| ---------------------- | ------------------------------------------ |
-| `fatedraw.store.v2`    | users (email → username + password_hash) and all draws |
-| `fatedraw.session.v2`  | currently signed-in email                  |
+| Key                    | Contents                                                   |
+| ---------------------- | ---------------------------------------------------------- |
+| `fatedraw.store.v2`    | users (email → username + password_hash + xp + level + totalDraws), draws, series |
+| `fatedraw.session.v2`  | currently signed-in email                                  |
 
 To wipe everything (fresh streaks, empty collection):
 
@@ -60,7 +65,21 @@ Consecutive days ending today — or yesterday, if you haven't drawn yet today (
 - Base XP per rarity: Disaster 10, Bad 20, Neutral 30, Good 50, Legendary 100, Absolute Fate 200
 - Streak multiplier: 1x (streak 0-2), 1.25x (3-6), 1.5x (7-13), 2x (14+)
 - XP required per level: 100 * level^1.5 (escalating)
-- Level displayed in profile dropdown
+- Level displayed in profile dropdown with progress bar
+
+## Collection Series System
+
+- Drawing a card with the same **name + category** increments its series count
+- Series thresholds (triangular + 2): Level 1 needs 3, Level 2 needs 6, Level 3 needs 10, Level 4 needs 15, Level 5 needs 21, etc.
+- Leveling up awards bonus XP based on category:
+  - Disaster: 5 × level
+  - Bad: 10 × level
+  - Neutral: 15 × level
+  - Good: 25 × level
+  - Legendary: 50 × level
+  - Absolute Fate: 100 × level
+- Mini cards display "Series X (count/max)" badge
+- Series data persists per user in localStorage
 
 ## Score → category mapping
 
@@ -77,19 +96,25 @@ src/
     RegisterView.tsx      email + username + password registration
     UsernameView.tsx      first-time username setup
     HomeView.tsx          draw button / today's card / streak / UTC countdown
-    CollectionView.tsx    stats + history grid + full-card modal
+    CollectionView.tsx    stats + mini-card grid + full-card modal with save
     LeaderboardView.tsx   daily leaderboard sorted by rarity
     FateCard.tsx          the 9:16 shareable card (deterministic starfield)
+    MiniFateCard.tsx      9:16 miniature card for collection grid
     CardPickOverlay.tsx   ceremony animation (burst, pick, spin, reveal)
     LegalModal.tsx        terms & privacy modal
-    ProfileDropdown.tsx   user profile menu with XP, level, stats
+    TermsModal.tsx        full Terms of Service modal
+    ProfileDropdown.tsx   user profile menu with XP, level, stats, terms, reset, sign out
+    BackgroundParticles.tsx  interactive canvas snowfall background
   lib/
     utc.ts                UTC date helpers + countdown math
     fate.ts               random draws, category mapping, streak calc, XP calc
-    storage.ts            localStorage-backed users/sessions/draws (username/password + XP)
+    storage.ts            localStorage-backed users/sessions/draws/series (username/password + XP + series tracking)
     auth.ts               SHA-256 hashing, JWT utilities (browser-compatible)
-    exportCard.ts         PNG export + clipboard + native share sheet
-    sounds.ts             Web Audio API synthesized SFX (slot machine win for Absolute Fate)
+    exportCard.ts         PNG export + download (username optional)
+    sounds.ts             Web Audio API synthesized SFX (slot machine win for Absolute Fate, scaled rewards for all tiers)
+    account.ts            Supabase integration (fetchProfile, fetchDraws, saveDrawDb, migrateGuestDraws)
+    supabase.ts           Supabase client + readiness flag
+    globalSfx.ts          global SFX installation (click sounds)
   data/                   adjectives.json · nouns.json · comments.json
 ```
 
@@ -114,6 +139,7 @@ create table profiles (
   password_hash text,
   xp int default 0,
   level int default 1,
+  totalDraws int default 0,
   updated_at timestamp with time zone default now()
 );
 
@@ -125,6 +151,8 @@ create table draws (
   score int not null,
   category text not null,
   comment text,
+  series_level int default 1,
+  series_count int default 1,
   created_at timestamp with time zone default now()
 );
 
@@ -140,3 +168,10 @@ create policy "Users can delete own draws" on draws for delete using (auth.uid()
 ```
 
 Run: `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;` (adds password column for local auth).
+Also ensure `xp`, `level`, `totalDraws` columns exist on `profiles`, and `series_level`, `series_count` on `draws`.
+
+## Deployment
+
+- **Vercel**: Connect the GitHub repo. Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_JWT_SECRET` as Environment Variables in Vercel project settings.
+- Build command: `npm run build`
+- Output directory: `dist`
