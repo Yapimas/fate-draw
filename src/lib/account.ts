@@ -4,6 +4,9 @@ import { supabase } from "./supabase";
 export interface DbProfile {
   id: string;
   username: string;
+  xp: number;
+  level: number;
+  totalDraws: number;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -24,11 +27,11 @@ function rowToDraw(row: any): Draw {
 export async function fetchProfile(userId: string): Promise<DbProfile | null> {
   const { data, error } = await supabase!
     .from("profiles")
-    .select("id, username")
+    .select("id, username, xp, level, totalDraws")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data ? { id: data.id, username: data.username ?? "" } : null;
+  return data ? { id: data.id, username: data.username ?? "", xp: data.xp ?? 0, level: data.level ?? 1, totalDraws: data.totalDraws ?? 0 } : null;
 }
 
 export async function saveUsername(
@@ -44,6 +47,16 @@ export async function saveUsername(
     return { ok: false, error: error.message };
   }
   return { ok: true };
+}
+
+export async function updateProfileXp(userId: string, xp: number, level: number, totalDraws?: number): Promise<void> {
+  const updateData: Record<string, any> = { xp, level };
+  if (totalDraws !== undefined) updateData.totalDraws = totalDraws;
+  const { error } = await supabase!
+    .from("profiles")
+    .update(updateData)
+    .eq("id", userId);
+  if (error) throw error;
 }
 
 export async function fetchDraws(userId: string): Promise<Draw[]> {
@@ -70,6 +83,18 @@ export async function saveDrawDb(draw: Draw, userId: string): Promise<void> {
   if (error) {
     if (error.code === "23505") throw new Error("already-drawn");
     throw error;
+  }
+  // Increment totalDraws in profile
+  const { data: prof } = await supabase!
+    .from("profiles")
+    .select("totalDraws")
+    .eq("id", userId)
+    .maybeSingle();
+  if (prof) {
+    await supabase!
+      .from("profiles")
+      .update({ totalDraws: (prof.totalDraws ?? 0) + 1 })
+      .eq("id", userId);
   }
 }
 

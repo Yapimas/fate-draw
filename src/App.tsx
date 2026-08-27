@@ -11,6 +11,7 @@ import {
   migrateGuestDraws,
   saveDrawDb,
   saveUsername as saveUsernameDb,
+  updateProfileXp,
 } from "./lib/account";
 import {
   GUEST_EMAIL,
@@ -60,10 +61,16 @@ export default function App() {
     const today = getTodayUTC();
     if (p.id && supabase) {
       try {
-        const all = await fetchDraws(p.id);
+        const [all, prof] = await Promise.all([
+          fetchDraws(p.id),
+          fetchProfile(p.id),
+        ]);
         setDraws(all);
         setTodayDraw(all.find((d) => d.drawDate === today) ?? null);
         setStreak(computeStreak(new Set(all.map((d) => d.drawDate)), today));
+        if (prof) {
+          setProfile((prev) => prev ? { ...prev, xp: prof.xp, level: prof.level, totalDraws: prof.totalDraws } : null);
+        }
       } catch (err) {
         console.error("Failed to load draws", err);
       }
@@ -124,7 +131,7 @@ export default function App() {
         console.warn("Guest migration skipped", err);
       }
       const prof = await fetchProfile(userId);
-      const p: Profile = { id: userId, email, username: prof?.username ?? "", xp: 0, level: 1, totalDraws: 0 };
+      const p: Profile = { id: userId, email, username: prof?.username ?? "", xp: prof?.xp ?? 0, level: prof?.level ?? 1, totalDraws: prof?.totalDraws ?? 0 };
       setProfile(p);
       if (!p.username) {
         setView("username");
@@ -139,7 +146,42 @@ export default function App() {
     const passwordHash = await hashPassword(password);
     const result = registerUser(email, username, passwordHash);
     if ("error" in result) return result.error;
-    const p: Profile = { id: "", email: result.email, username: result.username, xp: 0, level: 1, totalDraws: 0 };
+    
+    // Create profile in Supabase if available
+    let supabaseUserId = "";
+    if (supabase) {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { username } },
+        });
+        if (authError) {
+          console.warn("Supabase auth signUp failed:", authError.message);
+        } else if (authData.user) {
+          supabaseUserId = authData.user.id;
+          // Insert profile row
+          await supabase.from("profiles").insert({
+            id: supabaseUserId,
+            username,
+            xp: 0,
+            level: 1,
+            totalDraws: 0,
+          });
+        }
+      } catch (e) {
+        console.warn("Supabase profile creation failed:", e);
+      }
+    }
+    
+    const p: Profile = { 
+      id: supabaseUserId, 
+      email: result.email, 
+      username: result.username, 
+      xp: 0, 
+      level: 1, 
+      totalDraws: 0 
+    };
     setProfile(p);
     await refresh(p);
     setView("home");
@@ -150,7 +192,48 @@ export default function App() {
     const passwordHash = await hashPassword(password);
     const result = loginUser(email, passwordHash);
     if ("error" in result) return result.error;
-    const p: Profile = { id: "", email: result.email, username: result.username, xp: result.xp, level: result.level, totalDraws: result.totalDraws };
+    
+    // Sign in to Supabase to get user ID
+    let supabaseUserId = "";
+    if (supabase) {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (authError) {
+          console.warn("Supabase auth signIn failed:", authError.message);
+        } else if (authData.user) {
+          supabaseUserId = authData.user.id;
+          // Ensure profile exists
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("id, username, xp, level, totalDraws")
+            .eq("id", supabaseUserId)
+            .maybeSingle();
+          if (!prof) {
+            await supabase.from("profiles").insert({
+              id: supabaseUserId,
+              username: result.username,
+              xp: 0,
+              level: 1,
+              totalDraws: 0,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Supabase profile fetch failed:", e);
+      }
+    }
+    
+    const p: Profile = { 
+      id: supabaseUserId, 
+      email: result.email, 
+      username: result.username, 
+      xp: result.xp, 
+      level: result.level, 
+      totalDraws: result.totalDraws 
+    };
     setProfile(p);
     await refresh(p);
     setView("home");
@@ -197,6 +280,7 @@ export default function App() {
         if (seriesResult.seriesLeveledUp && profile.email !== GUEST_EMAIL) {
           const result = addXp(profile.email, seriesResult.bonusXp);
           setProfile((prev) => prev ? { ...prev, xp: result.xp, level: result.level } : null);
+          if (profile.id && supabase) await updateProfileXp(profile.id, result.xp, result.level);
         }
       }
     } catch (err) {
@@ -211,6 +295,7 @@ export default function App() {
     if (profile.email !== GUEST_EMAIL) {
       const result = addXp(profile.email, xpGain);
       setProfile((prev) => prev ? { ...prev, xp: result.xp, level: result.level } : null);
+      if (profile.id && supabase) await updateProfileXp(profile.id, result.xp, result.level);
     }
 
     await refresh(profile);
