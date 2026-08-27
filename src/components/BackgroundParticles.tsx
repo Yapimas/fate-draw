@@ -17,7 +17,7 @@ interface Particle {
 const PARTICLE_COUNT = 150;
 const MOUSE_INFLUENCE_RADIUS = 200;
 const REPULSION_FORCE = 0.15;
-const FALL_SPEED = 0.0006;
+const FALL_SPEED = 0.00006;
 const DRIFT_SPEED = 0.01;
 const GROUND_FRICTION = 0.96;
 const MAX_GROUND_HEIGHT = 180;
@@ -64,9 +64,9 @@ export default function BackgroundParticles() {
         const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
         return {
           x: Math.random() * w,
-          y: Math.random() * h,
+          y: Math.random() * h * 0.1,
           vx: (Math.random() - 0.5) * DRIFT_SPEED,
-          vy: FALL_SPEED * (0.3 + Math.random() * 0.7),
+          vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
           size: Math.random() * 3.5 + 1,
           opacity: color.baseOpacity * (0.7 + Math.random() * 0.3),
           color,
@@ -209,9 +209,9 @@ export default function BackgroundParticles() {
         p.life++;
         if (p.life > p.maxLife) {
           p.x = Math.random() * width;
-          p.y = -p.size;
+          p.y = Math.random() * height * 0.1;
           p.vx = (Math.random() - 0.5) * DRIFT_SPEED;
-          p.vy = FALL_SPEED * (0.3 + Math.random() * 0.7);
+          p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
           p.grounded = false;
           p.life = 0;
           p.maxLife = Math.random() * 60000 + 40000;
