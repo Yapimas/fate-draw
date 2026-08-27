@@ -53,7 +53,7 @@ export default function App() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [particlesEnabled, setParticlesEnabled] = useState(true);
+  const [particlesEnabled, setParticlesEnabled] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   const bootedRef = useRef(false);
