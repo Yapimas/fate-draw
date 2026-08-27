@@ -38,7 +38,6 @@ import TermsModal from "./components/TermsModal";
 import LoginView from "./components/LoginView";
 import RegisterView from "./components/RegisterView";
 import ProfileDropdown from "./components/ProfileDropdown";
-import BackgroundParticles from "./components/BackgroundParticles";
 
 type View = "loading" | "auth" | "username" | "home" | "collection" | "leaderboard";
 
@@ -53,7 +52,6 @@ export default function App() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [particlesEnabled, setParticlesEnabled] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   const bootedRef = useRef(false);
@@ -301,7 +299,6 @@ export default function App() {
 
   return (
     <>
-      {particlesEnabled && <BackgroundParticles />}
       <div className="app-shell">
         <header className="topbar">
           <button className="logo" onClick={() => setView("home")}>
@@ -333,15 +330,6 @@ export default function App() {
               Leaderboard
             </button>
             <span className="chip streak-chip">🔥 {streak}</span>
-            <button
-              className="btn-particles-toggle"
-              onClick={() => setParticlesEnabled((p) => !p)}
-              aria-pressed={particlesEnabled}
-              aria-label={particlesEnabled ? "Disable background particles" : "Enable background particles"}
-              title={particlesEnabled ? "Disable snowfall" : "Enable snowfall"}
-            >
-              {particlesEnabled ? "❄️" : "☀️"}
-            </button>
             {isSignedIn ? (
               <ProfileDropdown
                 profile={profile!}
