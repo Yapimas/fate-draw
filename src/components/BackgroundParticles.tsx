@@ -14,20 +14,21 @@ interface Particle {
   groundY: number;
 }
 
-const PARTICLE_COUNT = 100;
-const MOUSE_INFLUENCE_RADIUS = 180;
-const REPULSION_FORCE = 0.12;
-const FALL_SPEED = 0.008;
-const DRIFT_SPEED = 0.005;
-const GROUND_FRICTION = 0.95;
-const MAX_GROUND_HEIGHT = 150;
-const GROUND_COLUMNS = 200;
+const PARTICLE_COUNT = 150;
+const MOUSE_INFLUENCE_RADIUS = 200;
+const REPULSION_FORCE = 0.15;
+const FALL_SPEED = 0.06;
+const DRIFT_SPEED = 0.01;
+const GROUND_FRICTION = 0.96;
+const MAX_GROUND_HEIGHT = 180;
+const GROUND_COLUMNS = 240;
+const GROUND_GROWTH_RATE = 0.4;
 
 const PARTICLE_COLORS = [
-  { r: 124, g: 58, b: 237, baseOpacity: 0.65 },
-  { r: 79, g: 70, b: 229, baseOpacity: 0.62 },
-  { r: 185, g: 168, b: 248, baseOpacity: 0.60 },
-  { r: 255, g: 255, b: 255, baseOpacity: 0.58 },
+  { r: 124, g: 58, b: 237, baseOpacity: 0.70 },
+  { r: 79, g: 70, b: 229, baseOpacity: 0.67 },
+  { r: 185, g: 168, b: 248, baseOpacity: 0.65 },
+  { r: 255, g: 255, b: 255, baseOpacity: 0.62 },
 ];
 
 export default function BackgroundParticles() {
@@ -63,14 +64,14 @@ export default function BackgroundParticles() {
         const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
         return {
           x: Math.random() * w,
-          y: Math.random() * h * 0.3,
+          y: Math.random() * h,
           vx: (Math.random() - 0.5) * DRIFT_SPEED,
-          vy: FALL_SPEED * (0.5 + Math.random() * 0.5),
-          size: Math.random() * 3 + 1,
+          vy: FALL_SPEED * (0.3 + Math.random() * 0.7),
+          size: Math.random() * 3.5 + 1,
           opacity: color.baseOpacity * (0.7 + Math.random() * 0.3),
           color,
           life: 0,
-          maxLife: Math.random() * 80000 + 50000,
+          maxLife: Math.random() * 60000 + 40000,
           grounded: false,
           groundY: h,
         };
@@ -90,14 +91,14 @@ export default function BackgroundParticles() {
       if (cols === 0) return;
       const idx = Math.floor((x / w) * cols);
       const clamped = Math.max(0, Math.min(cols - 1, idx));
-      const newHeight = Math.min(MAX_GROUND_HEIGHT, groundRef.current[clamped] + size * 1.5);
+      const growth = size * GROUND_GROWTH_RATE;
+      const newHeight = Math.min(MAX_GROUND_HEIGHT, groundRef.current[clamped] + growth);
       groundRef.current[clamped] = newHeight;
-      // Smooth neighboring columns
-      const spread = Math.max(2, Math.floor(size * 0.8));
+      const spread = Math.max(2, Math.floor(size * 0.6));
       for (let i = 1; i <= spread; i++) {
         const factor = 1 - i / (spread + 1);
-        if (clamped - i >= 0) groundRef.current[clamped - i] = Math.max(groundRef.current[clamped - i], newHeight * factor * 0.7);
-        if (clamped + i < cols) groundRef.current[clamped + i] = Math.max(groundRef.current[clamped + i], newHeight * factor * 0.7);
+        if (clamped - i >= 0) groundRef.current[clamped - i] = Math.max(groundRef.current[clamped - i], newHeight * factor * 0.6);
+        if (clamped + i < cols) groundRef.current[clamped + i] = Math.max(groundRef.current[clamped + i], newHeight * factor * 0.6);
       }
     };
 
@@ -141,9 +142,7 @@ export default function BackgroundParticles() {
       const mouse = mouseRef.current;
       const ground = groundRef.current;
 
-      // Update and draw falling particles
       for (const p of particlesRef.current) {
-        // Mouse interaction (repulsion when hovering, explosion when clicking)
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.hypot(dx, dy);
@@ -151,19 +150,17 @@ export default function BackgroundParticles() {
         if (dist < MOUSE_INFLUENCE_RADIUS && dist > 0) {
           const force = (1 - dist / MOUSE_INFLUENCE_RADIUS) * REPULSION_FORCE;
           const angle = Math.atan2(dy, dx);
-          const clickMultiplier = mouse.down ? 8 : 1;
-          p.vx -= Math.cos(angle) * force * 0.08 * clickMultiplier;
-          p.vy -= Math.sin(angle) * force * 0.08 * clickMultiplier;
+          const clickMultiplier = mouse.down ? 6 : 1;
+          p.vx -= Math.cos(angle) * force * 0.1 * clickMultiplier;
+          p.vy -= Math.sin(angle) * force * 0.1 * clickMultiplier;
         }
 
         if (!p.grounded) {
-          // Falling physics
           p.x += p.vx;
           p.y += p.vy;
-          p.vx *= 0.998;
-          p.vy = Math.max(FALL_SPEED * 0.1, p.vy * 0.9995);
+          p.vx *= 0.996;
+          p.vy = Math.max(FALL_SPEED * 0.3, p.vy * 0.999);
 
-          // Check ground collision
           const groundH = getGroundHeightAt(p.x, width);
           const groundY = height - groundH;
           
@@ -176,23 +173,20 @@ export default function BackgroundParticles() {
             addToGround(p.x, p.size, width);
           }
         } else {
-          // Grounded physics - can be pushed by mouse
           if (mouse.down && dist < MOUSE_INFLUENCE_RADIUS * 1.5 && dist > 0) {
-            const force = (1 - dist / (MOUSE_INFLUENCE_RADIUS * 1.5)) * REPULSION_FORCE * 3;
+            const force = (1 - dist / (MOUSE_INFLUENCE_RADIUS * 1.5)) * REPULSION_FORCE * 4;
             const angle = Math.atan2(dy, dx);
-            p.vx += Math.cos(angle) * force * 0.15;
-            p.vy -= Math.sin(angle) * force * 0.2;
+            p.vx += Math.cos(angle) * force * 0.2;
+            p.vy -= Math.sin(angle) * force * 0.25;
             
-            // If pushed up enough, become airborne again
-            if (p.vy < -0.1) {
+            if (p.vy < -0.2) {
               p.grounded = false;
             }
           }
 
-          // Settle back to ground
           if (p.grounded) {
             p.x += p.vx;
-            p.vy += 0.02; // gravity
+            p.vy += 0.03;
             p.y += p.vy;
             p.vx *= GROUND_FRICTION;
             
@@ -203,36 +197,33 @@ export default function BackgroundParticles() {
               p.y = groundY - p.size;
               p.vy = 0;
               p.groundY = p.y;
-            } else if (p.y < groundY - p.size - 5) {
+            } else if (p.y < groundY - p.size - 8) {
               p.grounded = false;
             }
           }
         }
 
-        // Horizontal wrap
         if (p.x < -p.size) p.x = width + p.size;
         if (p.x > width + p.size) p.x = -p.size;
 
-        // Life cycle - respawn at top
         p.life++;
         if (p.life > p.maxLife) {
           p.x = Math.random() * width;
           p.y = -p.size;
           p.vx = (Math.random() - 0.5) * DRIFT_SPEED;
-          p.vy = FALL_SPEED * (0.5 + Math.random() * 0.5);
+          p.vy = FALL_SPEED * (0.3 + Math.random() * 0.7);
           p.grounded = false;
           p.life = 0;
-          p.maxLife = Math.random() * 80000 + 50000;
+          p.maxLife = Math.random() * 60000 + 40000;
           const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
           p.color = color;
           p.opacity = color.baseOpacity * (0.7 + Math.random() * 0.3);
-          p.size = Math.random() * 3 + 1;
+          p.size = Math.random() * 3.5 + 1;
         }
 
-        // Draw particle
         const lifeRatio = p.life / p.maxLife;
-        const currentOpacity = p.opacity * (1 - lifeRatio * 0.15);
-        const currentSize = p.size * (0.85 + lifeRatio * 0.15);
+        const currentOpacity = p.opacity * (1 - lifeRatio * 0.1);
+        const currentSize = p.size * (0.9 + lifeRatio * 0.1);
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
@@ -240,7 +231,6 @@ export default function BackgroundParticles() {
         ctx.fill();
       }
 
-      // Draw ground snow layer
       if (ground.length > 0) {
         const cols = ground.length;
         const colWidth = width / cols;
@@ -256,7 +246,6 @@ export default function BackgroundParticles() {
           if (i === 0) {
             ctx.lineTo(x, y);
           } else {
-            // Smooth curve
             const prevX = (i - 1) * colWidth;
             const prevH = ground[i - 1];
             const prevY = height - prevH;
@@ -268,15 +257,13 @@ export default function BackgroundParticles() {
         ctx.lineTo(width, height);
         ctx.closePath();
         
-        // Gradient fill for ground snow
         const grad = ctx.createLinearGradient(0, height - MAX_GROUND_HEIGHT, 0, height);
-        grad.addColorStop(0, "rgba(185, 168, 248, 0.12)");
-        grad.addColorStop(0.5, "rgba(124, 58, 237, 0.18)");
-        grad.addColorStop(1, "rgba(79, 70, 229, 0.25)");
+        grad.addColorStop(0, "rgba(185, 168, 248, 0.15)");
+        grad.addColorStop(0.5, "rgba(124, 58, 237, 0.22)");
+        grad.addColorStop(1, "rgba(79, 70, 229, 0.30)");
         ctx.fillStyle = grad;
         ctx.fill();
         
-        // Top highlight
         ctx.beginPath();
         ctx.moveTo(0, height);
         for (let i = 0; i <= cols; i++) {
@@ -292,8 +279,8 @@ export default function BackgroundParticles() {
             ctx.quadraticCurveTo(cpX, prevY, cpX, y);
           }
         }
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
 
